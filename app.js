@@ -74,6 +74,47 @@ async function start(){
   return;
  }
  button($('actions'),'새로고침',refresh);
+
+ const historyPanel = element('section', '');
+ $('entries').after(historyPanel);
+
+ button($('actions'), '기존 내 신청', async () => {
+   const rows = await rpc('my_legacy_entries');
+   historyPanel.replaceChildren(
+     element('h2', '기존 내 신청 · ' + rows.length + '건')
+   );
+
+   if (rows.length === 0) {
+     historyPanel.append(element('p', '조회할 기존 신청 내역이 없습니다.'));
+   }
+
+   const statusNames = {
+     pending: '승인 대기',
+     confirmed: '확정',
+     waitlist: '자리 대기',
+     cancel_requested: '취소 승인 대기',
+     cancelled: '취소',
+     canceled: '취소',
+     rejected: '반려'
+   };
+
+   for (const row of rows) {
+     const card = element('article', '');
+     const dates = row.ends_on && row.ends_on !== row.starts_on
+       ? row.starts_on + ' ~ ' + row.ends_on
+       : row.starts_on;
+
+     card.append(
+       element('h3', row.trip_title),
+       element('p', dates || '날짜 미기록'),
+       element('p', row.seats + '명 · ' +
+         (statusNames[row.status] || row.status || '상태 미기록'))
+     );
+     historyPanel.append(card);
+   }
+
+   historyPanel.scrollIntoView({ block: 'start' });
+ });
  button($('actions'),'로그아웃',async()=>{localStorage.removeItem(cacheKey);const {error}=await db.auth.signOut({scope:'local'});if(error)throw error;location.reload()});
  button($('actions'),'가입 신청',async()=>{const name=prompt('팀바바에서 사용할 닉네임');if(name){await rpc('join',{p_nickname:name});message('가입 정보를 접수했습니다. 운영진 승인 후 신청할 수 있습니다.')}});
  await refresh()
