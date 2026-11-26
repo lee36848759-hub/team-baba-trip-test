@@ -17,7 +17,7 @@ body.baba-back-visible .wrap{padding-bottom:120px}
 .trip-date-line{display:block;white-space:normal;overflow-wrap:break-word}
 .trip-date-separator{font-size:15px;line-height:1.1;color:#47758a;margin:2px 0}
 .baba-rules{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.85;font-size:14px;color:#243e4d}.baba-rules h2{margin-bottom:12px}</style></head><body><header><div style="max-width:850px;margin:auto"><strong>🎣 TEAM BABA</strong><small>Fishing Clubs · 출조 통합 관리</small></div></header><main class="wrap">
-<section id="loginPanel" class="card hidden"><h2>회원 로그인</h2><button type="button" id="kakaoLoginButton" onclick="kakaoLogin()" style="background:#FEE500;color:#191919;width:100%;margin-bottom:12px">카카오로 로그인 / 회원가입</button></section>
+<section id="loginPanel" class="card hidden"><h2>회원 로그인</h2><p id="loginNotice" role="status" hidden></p><button type="button" id="kakaoLoginButton" onclick="kakaoLogin()" style="background:#FEE500;color:#191919;width:100%;margin-bottom:12px">카카오로 로그인 / 회원가입</button></section>
 <section id="appPanel" class="hidden"><div class="card row"><div><b id="hello"></b><div class="muted" id="role"></div></div><div class="actions" style="margin-top:0"><button type="button" class="secondary" id="reloadDataButton" onclick="reloadBabaData()" title="다른 회원이 수정한 최신 출조 일정과 신청 현황을 불러옵니다">↻ 데이터 새로고침</button><button class="secondary" onclick="signOut()">로그아웃</button></div></div><div class="grid" id="stats"></div><div id="rankingPreview"></div><nav class="tabs"><button id="tab-trips" onclick="tab('trips')">출조 일정</button><button id="tab-create" onclick="tab('create')">출조 등록</button><button id="tab-mine" onclick="tab('mine')">내 신청</button><button id="tab-ranking" onclick="tab('ranking')">🏆 출조왕</button><button id="tab-rules" onclick="tab('rules')">📜 회칙</button><button type="button" id="babaGameEntry" onclick="launchBabaGameFromTrips()">🎣 바바 대물낚시</button><button id="tab-account" onclick="tab('account')">계정</button><button id="tab-admin" onclick="tab('admin')">운영진</button><button id="tab-roster" onclick="tab('roster')">전체 명부</button></nav><p class="muted" style="margin:-7px 0 12px;text-align:center">🎣 바바 대물낚시: 회원별 하루 20회 도전 가능</p><div id="view"></div></section>
 </main><button type="button" id="floatingBack" class="secondary" onclick="goBabaBack()" aria-label="이전 화면으로 돌아가기">← 뒤로가기</button><div id="toast" role="status"></div><script>
 let chosenPort=null,editChosenPort=null,portSearchResults=[];let token='',state=null,active='trips';const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const fullDate=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s||''));if(!m)return String(s||'날짜 미확인');const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));if(d.getFullYear()!==Number(m[1])||d.getMonth()!==Number(m[2])-1||d.getDate()!==Number(m[3]))return String(s);return `${m[1]}년 ${Number(m[2])}월 ${Number(m[3])}일 (${['일','월','화','수','목','금','토'][d.getDay()]})`};// 7/8물때식: 음력 날짜 기반의 관용 물때명. 실제 조석 예보(API)와 별개입니다.
@@ -53,21 +53,40 @@ async function signOut(){
  if(error)return msg(error.message);
  location.replace(location.pathname);
 }
+function showLoginNotice(text){
+ $('appPanel').classList.add('hidden');
+ $('loginPanel').classList.remove('hidden');
+ $('loginNotice').textContent=text;
+ $('loginNotice').hidden=false;
+}
+function loginFailure(reason){
+ if(/rate.limit|too many|429|only request/i.test(reason))return '인증 요청이 많아 잠시 제한되었습니다. 카카오계정 이메일에 도착한 최신 인증 메일을 먼저 확인해 주세요. 메일이 없으면 잠시 후 다시 시도해 주세요.';
+ if(/unverified.email|confirmation.email|email.not.confirmed/i.test(reason))return '카카오계정에 등록된 이메일로 인증 메일을 보냈습니다. 메일함과 스팸함에서 최신 메일을 열어 인증한 뒤 이 화면에서 다시 로그인해 주세요.';
+ if(/denied|cancel/i.test(reason))return '카카오 로그인이 취소되었습니다. 아래 버튼으로 다시 시작해 주세요.';
+ return '로그인을 완료하지 못했습니다. 출조 앱을 연 브라우저에서 아래 버튼을 눌러 다시 로그인해 주세요.';
+}
 async function kakaoLogin(){
+ if(!clubClient){location.reload();return;}
+ const button=$('kakaoLoginButton');
+ button.disabled=true;
  try{
   const {error}=await clubClient.auth.signInWithOAuth({provider:'kakao',options:{redirectTo:location.origin+location.pathname}});
   if(error)throw error;
- }catch(e){msg(e.message)}
+ }catch(e){button.disabled=false;showLoginNotice(loginFailure(e.message))}
 }
 async function startClub(){
+ const url=new URL(location.href);
+ const fragment=new URLSearchParams(url.hash.slice(1));
+ const field=name=>url.searchParams.get(name)||fragment.get(name)||'';
+ const code=field('code');
+ const failure=[field('error'),field('error_code'),field('error_description')].filter(Boolean).join(' ');
+ if(code||failure)history.replaceState({},'',url.pathname);
  const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2.49.4');
  clubClient=createClient(BABA.url,BABA.key,{auth:{storageKey:'baba-test-auth',flowType:'pkce',detectSessionInUrl:false}});
- const url=new URL(location.href);
- const code=url.searchParams.get('code');
+ if(failure){showLoginNotice(loginFailure(failure));return;}
  if(code){
-   history.replaceState({},'',url.pathname);
    const {error}=await clubClient.auth.exchangeCodeForSession(code);
-   if(error)throw error;
+   if(error){showLoginNotice(loginFailure(error.message));return;}
  }
  const {data,error}=await clubClient.auth.getSession();
  if(error)throw error;
@@ -138,6 +157,8 @@ async function refresh(){
       $('loginPanel').classList.remove('hidden');$('appPanel').classList.add('hidden');
     }
     if(token===requestedToken && token){
+      $('loginPanel').classList.add('hidden');$('appPanel').classList.remove('hidden');
+      $('reloadDataButton').onclick=refresh;
       $('view').innerHTML='<div class="card"><h2>정보 불러오기 실패</h2><p class="muted">데이터 새로고침을 눌러 다시 시도해 주세요.</p></div>';
       document.querySelectorAll('.tabs button').forEach(b=>b.disabled=true);
     }
@@ -862,7 +883,7 @@ async function loadPendingKakaoUI(){
  out.querySelectorAll('[data-kakao-id]').forEach(b=>b.onclick=async()=>{if(!confirm('이 회원의 가입을 '+(b.dataset.kakaoAccept==='true'?'승인':'반려')+'하시겠습니까?'))return;try{await call('decideKakaoMember',token,b.dataset.kakaoId,b.dataset.kakaoAccept==='true');const panel=$('kakaoPendingList')?.closest('.card');if(panel)panel.remove();await loadPendingKakaoUI();msg('처리 완료')}catch(e){msg(e.message)}});
  }catch(e){const out=$('kakaoPendingList');if(out)out.textContent=e.message;}
 }
-startClub().catch(e=>msg(e.message));
+startClub().catch(()=>showLoginNotice('출조 앱 연결에 실패했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.'));
 if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 
 // 낚시 게임은 사용자가 버튼을 누른 경우에만 실행합니다.
