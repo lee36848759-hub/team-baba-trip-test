@@ -158,5 +158,60 @@ async function start(){
    $('actions').prepend(element('p', details.join(' · ')));
  }
 
- await refresh();}
-start().catch(e=>message('연결을 확인해 주세요. '+e.message));
+ const legacyPanel = element('section', '');
+ $('trips').after(legacyPanel);
+
+ async function showLegacySchedule() {
+   if (profile.state !== 'active' && profile.state !== 'pending') return;
+
+   legacyPanel.replaceChildren(element('h2', '기존 출조 일정'));
+
+   try {
+     const rows = await rpc('legacy_schedule');
+
+     if (!rows.length) {
+       legacyPanel.append(element('p', '예정된 기존 출조가 없습니다.'));
+       return;
+     }
+
+     const stamp = new Date(rows[0].exported_at).toLocaleString('ko-KR', {
+       timeZone: 'Asia/Seoul'
+     });
+     legacyPanel.append(element('small', '원본 사본 기준 ' + stamp));
+
+     const today = new Intl.DateTimeFormat('sv-SE', {
+       timeZone: 'Asia/Seoul'
+     }).format(new Date());
+
+     for (const row of rows) {
+       const card = element('article', '');
+       const dates = row.starts === row.ends
+         ? row.starts
+         : row.starts + ' ~ ' + row.ends;
+
+       card.append(
+         element('h3', row.title),
+         element('p', dates),
+         element('p', '잔여 ' + row.free + '석 / 정원 ' +
+           row.capacity + '명 · 자리 대기 ' + row.waiting + '명')
+       );
+
+       const canApply = profile.state === 'active' &&
+         row.status === 'open' && row.starts >= today;
+
+       const link = element('a', canApply
+         ? '기존 프로그램에서 확인·신청'
+         : '기존 프로그램에서 최신 일정 확인');
+
+       link.href = 'https://script.google.com/macros/s/AKfycbyqDiWjV_BuwRF-UAyaIZG30NMzr3NVXUZH-J9cKj7ii89HCbYtyqyiAqLnf2UjL0G7/exec';
+       card.append(link);
+       legacyPanel.append(card);
+     }
+   } catch (error) {
+     legacyPanel.append(element('p', '기존 일정 조회 실패 · ' + error.message));
+   }
+ }
+
+ await Promise.all([refresh(), showLegacySchedule()]);
+}
+start().catch(e => message('연결을 확인해 주세요. ' + e.message));
