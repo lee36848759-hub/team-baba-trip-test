@@ -1,6 +1,6 @@
 const scope = self.registration.scope;
 const config = new URL('config.js', scope).href;
-const cacheName = 'baba-test-shell-v8-' + scope;
+const cacheName = 'baba-club-shell-v1-' + scope;
 const assets = ['./','./index.html','./app.js','./manifest.json','./icon192.png','./icon512.png'];
 
 self.addEventListener('install', event => {
@@ -13,7 +13,7 @@ self.addEventListener('install', event => {
 
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
-    await caches.delete('baba-test-shell-v1-' + scope);
+    for(const key of await caches.keys()) if(key.startsWith('baba-test-shell-') && key.endsWith(scope)) await caches.delete(key);
     await self.clients.claim();
   })());
 });
