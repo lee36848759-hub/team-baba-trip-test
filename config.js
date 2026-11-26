@@ -1,0 +1,1 @@
+window.BABA = {url:'', key:''};
