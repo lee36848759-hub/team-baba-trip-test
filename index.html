@@ -70,7 +70,7 @@ async function kakaoLogin(){
  const button=$('kakaoLoginButton');
  button.disabled=true;
  try{
-  const {error}=await clubClient.auth.signInWithOAuth({provider:'kakao',options:{redirectTo:location.origin+location.pathname}});
+  const {error}=await clubClient.auth.signInWithOAuth({provider:'kakao',options:{queryParams:{scope:'profile_nickname profile_image'},redirectTo:location.origin+location.pathname}});
   if(error)throw error;
  }catch(e){button.disabled=false;showLoginNotice(loginFailure(e.message))}
 }
