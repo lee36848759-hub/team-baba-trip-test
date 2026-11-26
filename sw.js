@@ -1,6 +1,6 @@
 const scope = self.registration.scope;
 const config = new URL('config.js', scope).href;
-const cacheName = 'baba-test-shell-v6-' + scope;
+const cacheName = 'baba-test-shell-v7-' + scope;
 const assets = ['./','./index.html','./app.js','./manifest.json','./icon192.png','./icon512.png'];
 
 self.addEventListener('install', event => {
