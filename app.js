@@ -116,7 +116,47 @@ async function start(){
    historyPanel.scrollIntoView({ block: 'start' });
  });
  button($('actions'),'로그아웃',async()=>{localStorage.removeItem(cacheKey);const {error}=await db.auth.signOut({scope:'local'});if(error)throw error;location.reload()});
- button($('actions'),'가입 신청',async()=>{const name=prompt('팀바바에서 사용할 닉네임');if(name){await rpc('join',{p_nickname:name});message('가입 정보를 접수했습니다. 운영진 승인 후 신청할 수 있습니다.')}});
- await refresh()
-}
+ const profile = await rpc('my_profile');
+
+ if (profile.state === 'new') {
+   button($('actions'), '가입 신청', async () => {
+     const nickname = prompt('팀바바에서 사용할 닉네임');
+     if (!nickname || !nickname.trim()) return;
+
+     await rpc('join', {p_nickname: nickname.trim()});
+     location.reload();
+   });
+ } else {
+   const roles = {
+     admin: '최고관리자',
+     staff: '운영진',
+     member: '일반회원'
+   };
+
+   let label = roles[profile.role] || '회원';
+   if (profile.state === 'pending') label = '가입 승인 대기';
+   if (profile.state === 'inactive') label = '비활성 회원';
+
+   const details = [profile.nickname, label];
+
+   if (profile.joined_at) {
+     const raw = String(profile.joined_at);
+     let day = raw;
+
+     if (raw.includes('T')) {
+       const date = new Date(raw);
+       if (!Number.isNaN(date.getTime())) {
+         day = new Intl.DateTimeFormat('sv-SE', {
+           timeZone: 'Asia/Seoul'
+         }).format(date);
+       }
+     }
+
+     details.push('가입일 ' + day);
+   }
+
+   $('actions').prepend(element('p', details.join(' · ')));
+ }
+
+ await refresh();}
 start().catch(e=>message('연결을 확인해 주세요. '+e.message));
