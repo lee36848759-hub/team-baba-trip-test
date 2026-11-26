@@ -38,10 +38,41 @@ async function start(){
  const cached=JSON.parse(localStorage.getItem(cacheKey)||'null');
  if(cached&&session?.user.id===cached.owner&&session.expires_at*1000>Date.now())draw(cached.rows,cached.time,false);
  const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2.49.4');
- db=createClient(BABA.url,BABA.key,{auth:{storageKey:authKey,flowType:'pkce'}});
+ const url=new URL(location.href);
+ const fragment=new URLSearchParams(url.hash.slice(1));
+ const field=name=>url.searchParams.get(name)||fragment.get(name);
+ const authCode=field('code');
+ const failure=field('error_code')||field('error');
+ const description=field('error_description')||'';
+ if(authCode||failure)history.replaceState(history.state,'',location.pathname);
+ db=createClient(BABA.url,BABA.key,{auth:{storageKey:authKey,flowType:'pkce',detectSessionInUrl:false}});
+ const pendingKey='baba-kakao-login-started';
+ const returning=sessionStorage.getItem(pendingKey);
+ sessionStorage.removeItem(pendingKey);
+ let notice='';
+ if(failure){
+  const safeCode=/^[a-zA-Z0-9_-]{1,64}$/.test(failure)?failure:'provider_error';
+  notice='카카오 인증 실패 ('+safeCode+'). ';
+  if(/external.*token|provider.*token/i.test(description))notice+='Supabase의 Kakao REST API Key와 Client Secret Code를 확인해 주세요.';
+  else if(/email/i.test(description))notice+='카카오 이메일 동의와 Supabase 이메일 설정을 확인해 주세요.';
+  else notice+='Supabase 인증 로그에서 같은 시각의 오류를 확인해 주세요.';
+ }else if(authCode){
+  const result=await db.auth.exchangeCodeForSession(authCode);
+  if(result.error)notice='로그인 세션 교환 실패 ('+(result.error.code||'exchange_failed')+'). 로그인을 시작한 브라우저에서 다시 시도해 주세요.';
+ }
  const {data,error}=await db.auth.getSession();if(error)throw error;user=data.session?.user;
- db.auth.onAuthStateChange((event,s)=>{if(user&&user.id!==s?.user.id){localStorage.removeItem(cacheKey);location.reload()}});
- if(!user){localStorage.removeItem(cacheKey);button($('actions'),'카카오 로그인',async()=>{const {error}=await db.auth.signInWithOAuth({provider:'kakao',options:{redirectTo:location.origin+location.pathname}});if(error)throw error});return}
+ if(!notice&&returning&&!user)notice='로그인 세션을 확인할 수 없습니다. 인증 결과가 이 주소로 돌아왔는지 Supabase 인증 로그를 확인해 주세요.';
+ if(notice)message(notice);
+ db.auth.onAuthStateChange((event,s)=>{if((s?.user?.id||null)!==(user?.id||null)){localStorage.removeItem(cacheKey);location.reload()}});
+ if(!user){
+  localStorage.removeItem(cacheKey);
+  button($('actions'),'카카오 로그인',async()=>{
+   sessionStorage.setItem(pendingKey,'1');
+   const {error}=await db.auth.signInWithOAuth({provider:'kakao',options:{redirectTo:location.origin+location.pathname}});
+   if(error){sessionStorage.removeItem(pendingKey);throw error}
+  });
+  return;
+ }
  button($('actions'),'새로고침',refresh);
  button($('actions'),'로그아웃',async()=>{localStorage.removeItem(cacheKey);const {error}=await db.auth.signOut({scope:'local'});if(error)throw error;location.reload()});
  button($('actions'),'가입 신청',async()=>{const name=prompt('팀바바에서 사용할 닉네임');if(name){await rpc('join',{p_nickname:name});message('가입 정보를 접수했습니다. 운영진 승인 후 신청할 수 있습니다.')}});
