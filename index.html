@@ -1,3 +1,897 @@
-<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#094e55"><link rel="manifest" href="manifest.json"><title>팀바바 출조 일정</title>
-<style>*{box-sizing:border-box}body{margin:0;background:#f1f5f3;color:#153936;font:16px/1.6 system-ui,sans-serif}header{background:#094e55;color:white;padding:20px max(5vw,calc((100vw - 720px)/2));font-weight:750}main{max-width:740px;margin:auto;padding:18px}article{background:white;border-radius:12px;margin:12px 0;padding:16px;border:1px solid #d6e4df}button,input{font:inherit;padding:7px 12px;border:1px solid #94aca6;border-radius:7px;margin:4px}button{background:#09565b;color:white;cursor:pointer}input[type=number]{width:5em}h1,h3,p{margin:4px 0}small{color:#4e6862}</style>
-<header>TEAM BABA · 출조 관리</header><main><h1>출조 일정</h1><small id="stamp"></small><section id="trips"></section><p id="msg" role="status"></p><section id="actions"></section><section id="entries"></section></main><script src="config.js"></script><script src="app.js"></script></html>
+<!DOCTYPE html><html lang="ko"><head><base target="_top"><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="manifest" href="./manifest.json"><script src="./config.js"></script><style>
+:root{font-family:system-ui,-apple-system,'Noto Sans KR',sans-serif;color:#153247;background:#f2f6f8}*{box-sizing:border-box}body{margin:0}header{background:#10364b;color:#fff;padding:19px 18px}header strong{font-size:23px;letter-spacing:.5px}header small{display:block;color:#b5d7e2;margin-top:3px}.wrap{max-width:850px;margin:auto;padding:16px}.card{background:#fff;border:1px solid #e2eaf0;border-radius:16px;padding:18px;margin-bottom:12px;box-shadow:0 2px 8px #19374908}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.kpi{text-align:center}.kpi b{font-size:24px;display:block}.muted{color:#607481;font-size:13px}.pill{display:inline-block;border-radius:99px;background:#e8f3f6;color:#21647a;padding:5px 9px;font-size:12px;font-weight:700}h2{font-size:18px;margin:8px 0 16px}h3{font-size:16px;margin:0 0 8px}button{border:0;border-radius:10px;background:#126e89;color:white;padding:11px 15px;font-weight:700;cursor:pointer}button.secondary{background:#e9f1f5;color:#23485b}button.danger{background:#9c4650}button:disabled{opacity:.45;cursor:not-allowed}input,select,textarea{width:100%;border:1px solid #c9d7e0;border-radius:9px;padding:12px;margin:5px 0 12px;font:inherit;background:white}label{font-size:13px;font-weight:700}.tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin:0 0 16px}.tabs button{min-width:0;min-height:44px;padding:10px 4px;white-space:normal;line-height:1.25;font-size:clamp(11px,2.7vw,14px)}.tabs button{white-space:nowrap;background:#e4eef2;color:#23475b}.tabs button.active{background:#126e89;color:#fff}.tabs button{white-space:normal;overflow-wrap:break-word}.trip{display:flex;gap:14px;align-items:flex-start}.date{background:#e7f3f7;border-radius:10px;padding:10px;min-width:78px;text-align:center;font-weight:800}.detail{flex:1}.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.hidden{display:none!important}.notice{background:#fff6e5;border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px}#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#153247;color:white;border-radius:10px;padding:12px 18px;display:none;max-width:90%;z-index:5}.row{display:flex;justify-content:space-between;align-items:center;gap:10px}.row>*{min-width:0}.mono{font-family:monospace;overflow-wrap:anywhere}small{line-height:1.5}@media(max-width:520px){.wrap{padding:10px}.card{padding:13px}.grid{gap:6px}.date{min-width:67px}.trip{gap:9px}}
+.approval-group{border:1px solid #dce7ed;border-radius:12px;margin:10px 0;overflow:hidden;background:#fff}.approval-group summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;padding:14px;list-style:none}.approval-group summary::-webkit-details-marker{display:none}.approval-group summary:before{content:'▸';color:#126e89;font-size:16px}.approval-group[open] summary:before{content:'▾'}.approval-group summary>span:first-of-type{flex:1;min-width:0}.approval-group summary .pill{white-space:normal;text-align:center}.approval-items{border-top:1px solid #e2eaf0;padding:0 14px}.approval-item{padding:12px 0;border-bottom:1px solid #edf2f5}.approval-item:last-child{border-bottom:0}
+</style><style> .port-results{border:1px solid #d1e0e8;border-radius:10px;max-height:220px;overflow-y:auto;margin:-7px 0 12px}.port-choice{display:block;width:100%;background:#fff;color:#153247;text-align:left;border-radius:0;border-bottom:1px solid #edf1f4;padding:10px}.port-choice:hover{background:#eaf5fa}.port-selected{padding:10px;background:#e7f3f7;border-radius:8px;margin-bottom:12px}</style><style>
+body.baba-back-visible .wrap{padding-bottom:120px}
+#floatingBack{position:fixed;right:18px;bottom:20px;z-index:20;border-radius:40px;box-shadow:0 4px 16px #10364b55;padding:13px 18px;display:none}
+.kpi-link{cursor:pointer;transition:transform .12s}.kpi-link:hover{transform:translateY(-2px)}.kpi-link:focus-visible{outline:3px solid #126e89}
+.group-heading{font-size:15px;margin:20px 0 9px;border-bottom:1px solid #dce7ed;padding-bottom:7px}
+</style><style>
+/* 출조 목록: 날짜는 상단 전체 너비, 상세 내용은 아래로 배치 */
+.card.trip{display:flex;flex-direction:column;align-items:stretch;gap:10px;min-width:0}
+.card.trip>.date{width:100%;min-width:0;padding:11px 10px;line-height:1.45;overflow-wrap:break-word}
+.card.trip>.detail{width:100%;min-width:0;flex:auto}
+.card.trip>.detail .row{flex-wrap:wrap;align-items:flex-start}
+.card.trip>.detail h3{overflow-wrap:anywhere;flex:1;min-width:0}
+.card.trip>.detail .actions button{white-space:normal;overflow-wrap:break-word;max-width:100%}
+.trip-date-line{display:block;white-space:normal;overflow-wrap:break-word}
+.trip-date-separator{font-size:15px;line-height:1.1;color:#47758a;margin:2px 0}
+.baba-rules{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.85;font-size:14px;color:#243e4d}.baba-rules h2{margin-bottom:12px}</style></head><body><header><div style="max-width:850px;margin:auto"><strong>🎣 TEAM BABA</strong><small>Fishing Clubs · 출조 통합 관리</small></div></header><main class="wrap">
+<section id="loginPanel" class="card hidden"><h2>회원 로그인</h2><button type="button" id="kakaoLoginButton" onclick="kakaoLogin()" style="background:#FEE500;color:#191919;width:100%;margin-bottom:12px">카카오로 로그인 / 회원가입</button></section>
+<section id="appPanel" class="hidden"><div class="card row"><div><b id="hello"></b><div class="muted" id="role"></div></div><div class="actions" style="margin-top:0"><button type="button" class="secondary" id="reloadDataButton" onclick="reloadBabaData()" title="다른 회원이 수정한 최신 출조 일정과 신청 현황을 불러옵니다">↻ 데이터 새로고침</button><button class="secondary" onclick="signOut()">로그아웃</button></div></div><div class="grid" id="stats"></div><div id="rankingPreview"></div><nav class="tabs"><button id="tab-trips" onclick="tab('trips')">출조 일정</button><button id="tab-create" onclick="tab('create')">출조 등록</button><button id="tab-mine" onclick="tab('mine')">내 신청</button><button id="tab-ranking" onclick="tab('ranking')">🏆 출조왕</button><button id="tab-rules" onclick="tab('rules')">📜 회칙</button><button type="button" id="babaGameEntry" onclick="launchBabaGameFromTrips()">🎣 바바 대물낚시</button><button id="tab-account" onclick="tab('account')">계정</button><button id="tab-admin" onclick="tab('admin')">운영진</button><button id="tab-roster" onclick="tab('roster')">전체 명부</button></nav><p class="muted" style="margin:-7px 0 12px;text-align:center">🎣 바바 대물낚시: 회원별 하루 20회 도전 가능</p><div id="view"></div></section>
+</main><button type="button" id="floatingBack" class="secondary" onclick="goBabaBack()" aria-label="이전 화면으로 돌아가기">← 뒤로가기</button><div id="toast" role="status"></div><script>
+let chosenPort=null,editChosenPort=null,portSearchResults=[];let token='',state=null,active='trips';const $=id=>document.getElementById(id);const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));const fullDate=s=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s||''));if(!m)return String(s||'날짜 미확인');const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));if(d.getFullYear()!==Number(m[1])||d.getMonth()!==Number(m[2])-1||d.getDate()!==Number(m[3]))return String(s);return `${m[1]}년 ${Number(m[2])}월 ${Number(m[3])}일 (${['일','월','화','수','목','금','토'][d.getDay()]})`};// 7/8물때식: 음력 날짜 기반의 관용 물때명. 실제 조석 예보(API)와 별개입니다.
+const tideFromDate=date=>{
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||'')))return null;
+  try{
+    const parts=new Intl.DateTimeFormat('en-u-ca-chinese',{month:'numeric',day:'numeric',timeZone:'Asia/Seoul'}).formatToParts(new Date(date+'T03:00:00Z'));
+    const day=Number(parts.find(x=>x.type==='day')?.value);
+    if(!Number.isInteger(day)||day<1||day>30)return null;
+    const n=((day-1)%15)+1;
+    const seven=n===8?'조금':n===9?'무시':n<=7?(n+6)+'물':n<=15?(n-9)+'물':'';
+    const eight=n===8?'조금':n<=7?(n+7)+'물':n<=15?(n-8)+'물':'';
+    return {seven,eight,lunarDay:day};
+  }catch(e){return null}
+};
+const tideText=t=>{const v=tideFromDate(t?.date);return v?`7물때식: ${esc(v.seven)} · 8물때식: ${esc(v.eight)}`:'물때: 계산 불가 (날짜 확인)'};
+const tideDetail=t=>{const v=tideFromDate(t?.date);return v?`7물때식 ${esc(v.seven)} / 8물때식 ${esc(v.eight)} <span class="muted">(음력일 기반 계산)</span>`:'물때 계산 불가'};
+const money=n=>Number(n||0).toLocaleString('ko-KR')+'원';const pendingMember=()=>state?.profile?.status==='pending';const admin=()=>Boolean(state?.profile&&['admin','staff'].includes(state.profile.role));const superAdmin=()=>Boolean(state?.profile&&state.profile.role==='admin');const canEditTrip=t=>Boolean(t&&(admin()||(String(t.creatorId||'').trim()&&String(t.creatorId)===String(state?.profile?.id))));const todayKst=()=>state?.todayKst||new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());const isPastTrip=t=>Boolean(t?.date&&String(t.endDate||t.date)<todayKst());const visibleTrips=()=>Array.isArray(state?.trips)?state.trips.filter(t=>t.status!=='deleted'&&!isPastTrip(t)):[];const validMyTrips=()=>Array.isArray(state?.trips)?state.trips.filter(t=>t.status!=='deleted'&&!isPastTrip(t)):[];const tripDateRange=t=>t.endDate&&t.endDate!==t.date?fullDate(t.date)+' ~ '+fullDate(t.endDate):fullDate(t.date);const tripDateDisplay=t=>t.endDate&&t.endDate!==t.date?'<div class="trip-date-line">'+esc(fullDate(t.date))+'</div><div class="trip-date-separator">↓</div><div class="trip-date-line">'+esc(fullDate(t.endDate))+'</div>':'<div class="trip-date-line">'+esc(fullDate(t.date))+'</div>'; const pastTrips=()=>Array.isArray(state?.trips)?state.trips.filter(t=>t.status!=='deleted'&&isPastTrip(t)):[];function msg(s){const el=$('toast');el.textContent=s;el.style.display='block';setTimeout(()=>el.style.display='none',4000)}
+let clubClient;
+async function call(fn,unusedToken,...args){
+ const {data,error}=await clubClient.auth.getSession();
+ if(error||!data.session)throw Error('로그인이 필요합니다.');
+ const res=await fetch(BABA.url+'/functions/v1/baba-club',{
+   method:'POST',headers:{'Content-Type':'application/json',apikey:BABA.key,Authorization:'Bearer '+data.session.access_token},
+   body:JSON.stringify({action:fn,args})
+ });
+ const body=await res.json();
+ if(!res.ok)throw Error(body.error||body.message||'서버 연결에 실패했습니다.');
+ return body.result;
+}
+async function signOut(){
+ const {error}=await clubClient.auth.signOut({scope:'local'});
+ if(error)return msg(error.message);
+ location.replace(location.pathname);
+}
+async function kakaoLogin(){
+ try{
+  const {error}=await clubClient.auth.signInWithOAuth({provider:'kakao',options:{redirectTo:location.origin+location.pathname}});
+  if(error)throw error;
+ }catch(e){msg(e.message)}
+}
+async function startClub(){
+ const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2.49.4');
+ clubClient=createClient(BABA.url,BABA.key,{auth:{storageKey:'baba-test-auth',flowType:'pkce',detectSessionInUrl:false}});
+ const url=new URL(location.href);
+ const code=url.searchParams.get('code');
+ if(code){
+   history.replaceState({},'',url.pathname);
+   const {error}=await clubClient.auth.exchangeCodeForSession(code);
+   if(error)throw error;
+ }
+ const {data,error}=await clubClient.auth.getSession();
+ if(error)throw error;
+ token=data.session?.user.id||'';
+ clubClient.auth.onAuthStateChange((event,s)=>{if((s?.user.id||'')!==token)location.reload()});
+ await refresh();
+}
+
+// 다른 회원이 변경한 출조 일정·신청·승인 상태를 서버에서 다시 조회합니다.
+let babaReloading=false;
+async function reloadBabaData(){
+  if(babaReloading||!token)return;
+  babaReloading=true;
+  const button=$('reloadDataButton');
+  if(button){button.disabled=true;button.textContent='↻ 불러오는 중...';}
+  try{
+    // 현재 선택한 월별 필터와 메뉴는 유지합니다.
+    const result=await call('data',token);
+    if(!result||!result.profile||!Array.isArray(result.trips)||!Array.isArray(result.regs))throw new Error('최신 데이터를 불러오지 못했습니다.');
+    state=result;rankingYearCache={};rankingPreviewRequest++;
+    // 상세 화면을 보고 있던 경우 해당 출조 상세를 다시 표시합니다.
+    if(babaScreen?.kind==='detail'&&babaScreen.id){
+      const trip=state.trips.find(t=>String(t.id)===String(babaScreen.id));
+      if(trip&&trip.status!=='deleted')showTripDetail(babaScreen.id);
+      else {active='trips';render();}
+    }else render();
+    msg('최신 출조 일정과 신청 현황을 불러왔습니다.');
+  }catch(e){msg('새로고침 실패: '+(e?.message||e));}
+  finally{babaReloading=false;if(button){button.disabled=false;button.textContent='↻ 데이터 새로고침';}}
+}
+async function refresh(){
+  const requestedToken=token;
+  try{
+    if(!requestedToken){$('loginPanel').classList.remove('hidden');$('appPanel').classList.add('hidden');return;}
+    // 첫 화면은 최소 인증 정보만 먼저 받아 표시합니다.
+    // 최종 데이터가 도착할 때까지 출조 신청/관리 메뉴는 열지 않습니다.
+    const result=await call('data',requestedToken,true);
+    const quick=result;
+    if(token!==requestedToken)return;
+    if(!quick||!quick.profile||!quick.profile.id)throw new Error('초기 회원정보를 불러오지 못했습니다.');
+    $('loginPanel').classList.add('hidden');
+    $('appPanel').classList.remove('hidden');
+    $('hello').textContent=quick.profile.nickname+' 님';
+    $('role').textContent='출조 정보를 불러오는 중...';
+    $('stats').innerHTML='<div class="card kpi" style="grid-column:1/-1">출조 정보를 불러오는 중...</div>';
+    $('rankingPreview').innerHTML='';
+    $('view').innerHTML='<div class="card"><h2>출조 일정 준비 중</h2><p class="muted">최신 출조·신청·대기 정보를 확인하고 있습니다.</p></div>';
+    document.querySelectorAll('.tabs button').forEach(b=>b.disabled=true);
+
+    if(token!==requestedToken)return; // 로그아웃 또는 다른 로그인 이후 도착한 응답은 무시
+    if(!result||!result.profile||!result.profile.id||!Array.isArray(result.trips)||!Array.isArray(result.regs)){
+      throw new Error('서버에서 회원 정보를 정상적으로 받지 못했습니다. Code.gs 배포 버전과 데이터베이스를 확인해 주세요.');
+    }
+    state=result;rankingYearCache={};rankingPreviewRequest++;
+    document.querySelectorAll('.tabs button').forEach(b=>b.disabled=false);
+    updateBabaBack();
+    $('loginPanel').classList.add('hidden');$('appPanel').classList.remove('hidden');
+    $('hello').textContent=state.profile.nickname+' 님';
+    $('role').textContent=pendingMember()?'가입 승인 대기':superAdmin()?'최고관리자':admin()?'운영진 계정':'일반 회원';
+    ['create','mine'].forEach(n=>$('tab-'+n).style.display=pendingMember()?'none':'');$('tab-admin').style.display=admin()?'':'none';
+    $('tab-roster').style.display='';
+    render();
+  }catch(e){
+    if(token!==requestedToken)return;
+    const message=String(e?.message||e||'알 수 없는 오류');
+    if(/로그인이 만료|로그인이 필요|비활성화/.test(message)){
+      token='';state=null;localStorage.removeItem('baba_token');
+      $('loginPanel').classList.remove('hidden');$('appPanel').classList.add('hidden');
+    }
+    if(token===requestedToken && token){
+      $('view').innerHTML='<div class="card"><h2>정보 불러오기 실패</h2><p class="muted">데이터 새로고침을 눌러 다시 시도해 주세요.</p></div>';
+      document.querySelectorAll('.tabs button').forEach(b=>b.disabled=true);
+    }
+    msg(message);
+  }
+}
+let babaNavStack=[],babaScreen={kind:'tab',name:'trips'},babaNavigatingBack=false;
+function babaPush(next){
+  if(!babaNavigatingBack && (babaScreen.kind!==next.kind || babaScreen.name!==next.name || babaScreen.id!==next.id)){
+    babaNavStack.push({...babaScreen});if(babaNavStack.length>25)babaNavStack.shift();
+  }
+  babaScreen=next;updateBabaBack();
+}
+function updateBabaBack(){const b=$('floatingBack');const visible=Boolean(token&&babaNavStack.length);if(b)b.style.display=visible?'block':'none';document.body.classList.toggle('baba-back-visible',visible)}
+function goBabaBack(){
+  if(!babaNavStack.length)return;
+  const target=babaNavStack.pop();babaNavigatingBack=true;
+  try{
+    if(target.kind==='detail'){active=target.tab||'trips';showTripDetail(target.id)}
+    else if(target.kind==='edit'){active=target.tab||'trips';editTrip(target.id)}
+    else if(target.kind==='transfer'){active='mine';transfer(target.id)}
+    else if(target.name==='past')showPastTrips();
+    else {active=target.name||'trips';babaScreen={kind:'tab',name:active};render()}
+  }finally{babaNavigatingBack=false;updateBabaBack()}
+}
+function tab(name){if(name==='apply')name='trips';if(pendingMember()&&!['trips','ranking','rules','account','roster'].includes(name))return msg('운영진 승인 후 이용할 수 있습니다.');babaPush({kind:'tab',name});active=name;render()}
+function kpiGo(where){if(pendingMember()&&where!=='trips')return msg('운영진 승인 후 이용할 수 있습니다.');if(where==='waitlist'){mineStatusFilter='waitlist';tab('mine')}else if(where==='mine'){mineStatusFilter='active';tab('mine')}else tab('trips')}
+
+function render(){if(pendingMember()&&!['trips','ranking','rules','account','roster'].includes(active))active='trips';if(!state?.profile||!Array.isArray(state.regs)||!Array.isArray(state.trips))return;['trips','create','mine','ranking','rules','admin','roster','account'].forEach(n=>$('tab-'+n).classList.toggle('active',active===n));const trips=visibleTrips(), mine=state.regs.filter(r=>r.memberId===state.profile.id&&validMyTrips().some(t=>String(t.id)===String(r.tripId)));$('stats').innerHTML=`<div class="card kpi kpi-link" role="button" tabindex="0" data-kpi="trips"><b>${trips.length}</b><span class="muted">전체 일정 보기 ›</span></div><div class="card kpi kpi-link" role="button" tabindex="0" data-kpi="mine"><b>${mine.filter(r=>['confirmed','pending','cancel_requested'].includes(r.status)).length}</b><span class="muted">내 신청 보기 ›</span></div><div class="card kpi kpi-link" role="button" tabindex="0" data-kpi="waitlist"><b>${mine.filter(r=>r.status==='waitlist').length}</b><span class="muted">내 대기 보기 ›</span></div>`;$('stats').querySelectorAll('[data-kpi]').forEach(el=>{el.onclick=()=>kpiGo(el.dataset.kpi);el.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();kpiGo(el.dataset.kpi)}}});renderRankingPreview();if(active==='trips')showTrips();if(active==='create')showCreateTrip();if(active==='mine')showMine();if(active==='ranking')showRanking();if(active==='rules')showBabaRules();if(active==='admin'){showAdmin();loadPendingKakaoUI();}if(active==='past')showPastTrips();if(active==='roster')showRoster();if(active==='account')showAccount();updateBabaBack()}
+let tripMonthFilter='';
+let tripRecruitFilter='all';
+function tripRecruitChange(value){tripRecruitFilter=value;showTrips()}
+function tripMonthChange(value){tripMonthFilter=value;showTrips()}
+
+let rankingSelectedYear=null;
+let rankingYearCache={};
+function currentRankingYear(){return Number(state?.rankingYear||String(state?.todayKst||new Date().toISOString()).slice(0,4))}
+function rankingRowsHtml(items){return items.length?items.map(x=>`<div class="approval-item row"><span><b>${Number(x.rank)}위</b> · ${esc(x.nickname)}</span><span class="pill">${Number(x.count)}회</span></div>`).join(''):'<p class="muted">해당 연도에 집계된 출조 신청이 없습니다.</p>'}
+let rankingPreviewYear=null;
+let rankingPreviewRequest=0;
+function renderRankingPreview(){
+ const root=$('rankingPreview');if(!root||!state)return;
+ if(!rankingPreviewYear)rankingPreviewYear=currentRankingYear();
+ const year=rankingPreviewYear;
+ const result=rankingYearCache[year]||(year===currentRankingYear()&&Array.isArray(state.rankingTop)?{top:state.rankingTop,myRanking:state.myRanking}:null);
+ root.innerHTML=`<div class="card"><div class="row"><div><h3>🏆 TEAM BABA ${year}년 출조왕 TOP 10</h3><p class="muted">${year}년 1월 1일~12월 31일 출조 기준 · 출조 하루당 1회 집계 · 실제 참가 3명 이상만 인정</p></div><button type="button" class="secondary" id="rankingMore">전체 순위 보기</button></div><label for="rankingPreviewYear">조회 연도</label><select id="rankingPreviewYear">${rankingYearOptions(year)}</select><div id="rankingPreviewResults">${result?rankingRowsHtml((result.top||[]).slice(0,10)):'<p class="muted">순위를 불러오는 중...</p>'}</div><p class="muted" id="rankingPreviewMine">${result?(result.myRanking?'내 순위: '+Number(result.myRanking.rank)+'위 · '+Number(result.myRanking.count)+'회':'집계 대상 신청 없음'):''}</p></div>`;
+ $('rankingMore').onclick=()=>{rankingSelectedYear=rankingPreviewYear;tab('ranking')};
+ $('rankingPreviewYear').onchange=e=>{rankingPreviewYear=Number(e.target.value);renderRankingPreview()};
+ if(!result){
+  const request=++rankingPreviewRequest;
+  call('getBabaRankingByYear',token,year).then(data=>{
+   rankingYearCache[year]=data;
+   if(request===rankingPreviewRequest&&rankingPreviewYear===year&&$('rankingPreviewYear'))renderRankingPreview();
+  }).catch(e=>{
+   if(request===rankingPreviewRequest&&rankingPreviewYear===year&&$('rankingPreviewResults'))$('rankingPreviewResults').textContent='조회 실패: '+e.message;
+  });
+ }
+}
+function rankingYearOptions(selectedYear=rankingSelectedYear){
+ const current=currentRankingYear();const years=new Set([current]);
+ (state?.trips||[]).forEach(t=>{const start=Number(String(t.date||'').slice(0,4)),end=Number(String(t.endDate||t.date||'').slice(0,4));if(start>=2000&&end<=2100&&end>=start){for(let y=start;y<=end;y++)years.add(y)}});
+ if(selectedYear)years.add(selectedYear);
+ return [...years].sort((a,b)=>b-a).map(y=>`<option value="${y}" ${y===selectedYear?'selected':''}>${y}년</option>`).join('');
+}
+function showRanking(){
+ if(!rankingSelectedYear)rankingSelectedYear=currentRankingYear();
+ const year=rankingSelectedYear;const cached=rankingYearCache[year];const initial=year===currentRankingYear()&&Array.isArray(state.rankingTop)?{top:state.rankingTop,myRanking:state.myRanking}:null;
+ const result=cached||initial;
+ $('view').innerHTML=`<h2>🏆 출조왕 순위</h2><div class="card"><label for="rankingYear">조회 연도 (1월 1일~12월 31일)</label><select id="rankingYear">${rankingYearOptions()}</select><h3>${year}년 TOP 10</h3><div id="rankingYearResults">${result?rankingRowsHtml(result.top):'불러오는 중...'}</div><p class="muted" id="rankingMyRank">${result?(result.myRanking?`내 순위: ${Number(result.myRanking.rank)}위 (${Number(result.myRanking.count)}회)`:'집계 대상 신청 없음'):''}</p></div><div class="card"><h3>닉네임으로 순위 검색</h3><div class="row"><input id="rankingQuery" maxlength="30" placeholder="회원 닉네임" style="margin-bottom:0"><button type="button" id="rankingSearch">검색</button></div><div id="rankingResults" style="margin-top:12px"></div><p class="muted">선택한 연도의 출조 날짜를 기준으로 집계합니다. 실제 참가 좌석 3명 이상인 일정만 집계하며, 확정·취소 승인 대기 좌석만 실제 참가 인원에 포함합니다. 승인 대기·대기·취소·삭제 일정은 제외합니다. 장기 출조는 시작일과 종료일을 포함해 하루당 1회 집계합니다. 연도를 넘기면 각 연도에 해당하는 일수만 인정합니다.</p></div>`;
+ $('rankingYear').onchange=e=>{rankingSelectedYear=Number(e.target.value);showRanking()};
+ $('rankingSearch').onclick=searchRankingUI;
+ $('rankingQuery').onkeydown=e=>{if(e.key==='Enter')searchRankingUI()};
+ if(!result)loadRankingYear(year);
+}
+async function loadRankingYear(year){
+ try{const result=await call('getBabaRankingByYear',token,year);rankingYearCache[year]=result;
+ if(active==='ranking'&&rankingSelectedYear===year&&$('rankingYearResults')){
+ $('rankingYearResults').innerHTML=rankingRowsHtml(result.top||[]);
+ $('rankingMyRank').textContent=result.myRanking?`내 순위: ${Number(result.myRanking.rank)}위 (${Number(result.myRanking.count)}회)`:'집계 대상 신청 없음';
+ }}catch(e){if(active==='ranking'&&rankingSelectedYear===year&&$('rankingYearResults'))$('rankingYearResults').textContent='조회 실패: '+e.message}
+}
+async function searchRankingUI(){
+ const q=$('rankingQuery')?.value.trim();if(!q)return msg('검색할 닉네임을 입력해 주세요.');
+ const year=rankingSelectedYear;const root=$('rankingResults');root.textContent='검색 중...';
+ try{const result=await call('searchBabaRanking',token,q,year);if($('rankingResults')===root&&rankingSelectedYear===year)root.innerHTML=rankingRowsHtml(result)}
+ catch(e){if($('rankingResults')===root)root.textContent='검색 실패: '+e.message}
+}
+
+function showBabaRules(){ $('view').innerHTML = '<div class="card"><div class="baba-rules">'+BABA_RULES_HTML+'</div></div>'; }
+const BABA_RULES_HTML = "팀바바(Team BABA Fishing Clubs) 모임 회칙\n\n제1조. 정의\n\n1.팀바바는 낚시 활동과 관련된 각종 정보 및 사항을 공유하고, 회원 간 동반 출조를 목적으로 운영하는 모임이다.\n\n제2조. 가입조건\n\n1.팀바바는 카카오톡 오픈채팅을 중심으로 운영한다.\n\n2.가입에 별도의 제한을 두지 않으며, 팀바바의 목적에 동의하고 활동하고자 하는 사람은 누구나 가입할 수 있다.\n\n제3조. 운영사항\n\n1.팀바바는 방장 1명과 부방장 6명으로 구성된 운영진을 중심으로 운영하는 것을 원칙으로 한다.\n\n2.방장은 매년 11월 선거를 통해 선출하며, 선출된 방장은 부방장 6명을 선임한다. 임기는 다음 해 2년으로 한다.\n\n3.방장 후보 자격에는 별도의 제한을 두지 않으며, 본인의 희망 또는 회원의 추천을 통해 입후보할 수 있다. 방장은 선거를 통해 선출하는 것을 원칙으로 한다.\n\n4.방장은 임의로 자신의 직책을 다른 사람에게 양도할 수 없다.\n\n방장 또는 부방장이 특별한 사유 없이 직책을 내려놓는 경우, 해당 직책의 사임과 함께 팀바바 채팅방에서도 탈퇴하는 것을 원칙으로 한다.\n\n5.방장이 사망 또는 그에 준하는 불가피한 사유로 직책 수행이 불가능한 경우에는 재선거를 통해 후임 방장을 선출한다. 새로 선출된 방장은 부운영진을 새롭게 구성할 수 있다.\n\n6.운영진의 운영 및 활동 과정에서 분열을 일으키거나 이를 조장하여 모임의 정상적인 유지가 어려울 정도의 중대한 문제가 발생한 경우, 전체 회원의 3분의 1 이상이 찬성하면 재선거를 요청할 수 있다.\n\n제4조. 동출모집\n\n1.동출의 정의\n\n동출이란 팀바바 내에서 회원 간에 이루어지는 동반 낚시 출조를 의미하며, 레저보트를 이용한 출조는 제외한다.\n\n2.동출 모집 및 인원\n\n카카오톡 단체방에서 모집하는 동출은 별도의 인원 제한 없이 진행할 수 있다.\n\n3.동출 모집 공지\n\n동출 모집자는 모집 공지에 출조 날짜, 대상 어종, 선사명, 선비, 모집 인원 및 기타 출조 관련 공유사항을 명확하게 기재해야 한다.\n\n4.동출 신청 및 비회원 참여\n\n가. 동출 모집 시 팀바바 회원은 모집 공지 후 바로 신청하는 것을 원칙으로 한다. 다만, 회원의 가족 또는 연인은 회원과 함께 신청할 수 있다.\n\n나. 팀바바 회원이 아닌 사람이 동출 참여를 희망하는 경우에는 모집 공지 시점으로부터 24시간이 경과한 이후 신청할 수 있다.\n\n5.독배 자리 추첨 및 지정\n\n가. 독배 출조의 자리 추첨은 동출일 기준 10일 전까지 진행하는 것을 원칙으로 한다.\n\n나. 자리 추첨을 통해 자리 선택 순서를 정하며, 추첨 순서에 따라 참여자가 원하는 자리를 선택한다.\n\n다. 소수 인원으로 진행하는 동출의 경우에는 출조 상황에 따라 모집자가 별도로 안내할 수 있다.\n\n6.출조 시 자리 준수\n\n가. 출조 당일에는 사전에 선택한 자리에서 낚시하는 것을 원칙으로 하며, 임의로 다른 자리로 이동하여 낚시하는 행위를 금지한다.\n\n나. 선택한 자리가 공석이더라도 임의로 해당 자리로 이동하지 않는 것을 원칙으로 한다.\n\n7.이동 및 동승\n\n팀바바의 동출은 자차 이동을 원칙으로 한다. 다만, 차량 동승 및 이동 방법은 참여 회원 간의 자율적인 협의를 통해 결정할 수 있다.\n\n8.선비 입금 기한 및 미입금 패널티\n\n가. 동출 참여자의 선비 입금은 입금 시작 공지 후 3일 이내에 완료하는 것을 원칙으로 한다.\n\n나. 정당한 사유 없이 기한 내 입금하지 않을 경우 패널티를 부여하며, 해당 패널티가 누적 2회를 초과하면 다음 해 1년간 동출 참여를 제한한다.\n\n9.선비 입금 및 책임 범위\n\n가. 선비는 동출 형태와 관계없이 팀바바 모임통장으로 입금하는 것을 원칙으로 한다.\n\n나. 모집자가 개별 입금을 진행하는 경우 선비 입금 및 정산 과정에서 발생하는 문제는 해당 당사자 간의 문제로 하며, 팀바바 및 운영진은 이에 대한 책임을 지지 않는다.\n\n다. 선비 입금 완료 후 선사의 사정으로 인해 출조가 취소·변경되거나 선비 환불 등 관련 문제가 발생하는 경우, 팀바바 및 운영진에게 그 책임을 묻지 않는 것을 원칙으로 한다.\n\n10.동출 신청 취소 및 양도\n\n가. 선비 입금 전에는 별도의 제한 없이 양도할 수 있다.\n\n나. 선비 입금 후에는 양도자 본인이 양수자를 구하는 것을 원칙으로 한다.\n\n다. 양도자가 직접 양수자를 구하기 어렵거나 양수자의 신원 확인이 필요한 경우, 또는 양도자가 실종되었거나 소재가 파악되지 않는 경우에는 운영진이 해당 상황을 확인한 후 판단에 따라 대리 양도를 진행할 수 있다.\n\n제5조. 회원관리\n\n1.팀바바는 자율적인 친목 모임으로, 회원 간의 개인적인 분쟁에는 관여하지 않는 것을 원칙으로 한다. 다만, 해당 분쟁이 팀바바의 운영이나 활동에 중대한 영향을 미치는 경우 운영진 회의를 통해 필요한 조치를 결정할 수 있다.\n\n2.회원이 팀바바의 원활한 운영을 방해하거나 모임의 질서를 심각하게 훼손하는 경우 운영진 회의를 통해 강제 퇴장 조치를 할 수 있다.\n\n3.팀바바 외부 활동에서 발생한 불법행위 또는 비도덕적 행위가 확인되고, 해당 행위로 인해 팀바바의 명예나 운영에 문제가 발생하는 경우 강제 퇴장 조치를 할 수 있다.\n\n부칙\n\n본 회칙은 회원 간 원활한 소통과 공정한 모임 운영을 위해 적용한다.\n\n회칙에 명시되지 않은 사항은 운영진 회의 및 회원 간 협의를 통해 결정한다.\n\n회칙의 개정이 필요한 경우 운영진 검토 및 회원 의견 수렴을 거쳐 개정할 수 있다.";
+function showTrips(){const all=visibleTrips().slice().sort((a,b)=>a.date.localeCompare(b.date));const items=all.filter(t=>(!tripMonthFilter||(String(t.date).slice(0,7)<=tripMonthFilter&&String(t.endDate||t.date).slice(0,7)>=tripMonthFilter))&&(tripRecruitFilter==='all'||(tripRecruitFilter==='closed'?t.status!=='open'&&t.status!=='draft':t.status===tripRecruitFilter)));$('view').innerHTML=`<h2>출조 일정</h2><div class="card"><label for="tripMonth">월별 일정 검색</label><div class="row"><input id="tripMonth" type="month" value="${esc(tripMonthFilter)}" style="margin-bottom:0"><button type="button" class="secondary" id="resetTripMonth">전체 월</button></div><label for="tripRecruitStatus">모집 상태별 검색</label><select id="tripRecruitStatus"><option value="all" ${tripRecruitFilter==='all'?'selected':''}>전체 모집 상태</option><option value="open" ${tripRecruitFilter==='open'?'selected':''}>모집중</option><option value="draft" ${tripRecruitFilter==='draft'?'selected':''}>모집전</option><option value="closed" ${tripRecruitFilter==='closed'?'selected':''}>마감</option></select><p class="muted">검색 결과 ${items.length}건</p></div>`+(items.length?'':'<div class="card muted">선택한 조건에 맞는 출조 일정이 없습니다.</div>')+items.map(t=>{const mine=state.regs.find(r=>r.tripId===t.id&&r.memberId===state.profile.id&&['confirmed','pending','waitlist','cancel_requested'].includes(r.status));return `<div class="card trip"><div class="date">${tripDateDisplay(t)}<div style="font-size:12px;margin-top:5px">${tideText(t)}</div></div><div class="detail"><div class="row"><h3>${esc(t.title)}</h3><span class="pill">${t.status==='open'?'모집중':t.status==='draft'?'모집전':'마감'}</span></div><div class="muted">등록자: ${esc(t.creatorNickname||'기존 일정 · 미확인')}</div><div class="muted">출항지: ${esc(t.departurePort||'미등록')}</div><div class="muted">${esc(t.boat)} · ${money(t.fee)} · ${t.filled}/${t.capacity}명 · 대기 ${t.waiting}건</div><small>${esc(t.notes)}</small><div class="actions"><button class="secondary" data-trip-detail="${esc(t.id)}">상세 보기 · 신청자 명단</button>${mine?`<span class="pill">내 신청: ${status(mine.status)}</span>`:''}${!pendingMember()&&t.status==='open'&&String(t.date)>=todayKst()&&(!mine||mine.status==='confirmed')?`<button onclick="apply('${t.id}')">${mine?'추가 신청':t.filled>=t.capacity?'대기 신청':'신청하기'}</button>`:''}</div></div></div>`}).join('');document.querySelectorAll('[data-trip-detail]').forEach(b=>b.addEventListener('click',()=>showTripDetail(b.dataset.tripDetail)));$('tripMonth').onchange=e=>tripMonthChange(e.target.value);$('resetTripMonth').onclick=()=>tripMonthChange('');$('tripRecruitStatus').onchange=e=>tripRecruitChange(e.target.value)}
+
+
+async function searchPorts(mode){
+ const prefix=mode==='edit'?'edit':'member';
+ const input=$(prefix+'PortQuery'),out=$(prefix+'PortResults');
+ const q=input.value.trim();
+ if(q.length<1){msg('항구명 또는 지역명을 입력하세요.');return;}
+ out.innerHTML='<div class="muted" style="padding:12px">검색 중...</div>';
+ try{
+  const results=await call('searchDeparturePorts',token,q);
+  portSearchResults=results;
+  out.innerHTML=results.length?results.map((p,i)=>`<button type="button" class="port-choice" data-port-index="${i}"><b>${esc(p.name)}</b><div class="muted">${esc(p.address)} · ${p.source==='kakao'?'카카오 장소':'기존 항구 목록'}</div></button>`).join(''):'<div class="muted" style="padding:12px">등록된 항구가 없습니다. 다른 항구명이나 지역명으로 검색해 주세요.</div>';
+  out.querySelectorAll('[data-port-index]').forEach(b=>b.onclick=()=>{
+   const port=portSearchResults[Number(b.dataset.portIndex)];
+   if(mode==='edit')editChosenPort=port;else chosenPort=port;
+   $(prefix+'PortSelected').textContent='선택한 출항지: '+port.name+' · '+port.address;
+   out.innerHTML='';input.value=port.name;
+  });
+ }catch(e){out.innerHTML='';msg(e.message)}
+}
+function portSearchHtml(prefix){return `<label>출항지 (카카오 장소 검색 · 필수)</label><div class="row"><input id="${prefix}PortQuery" placeholder="예: 오천항, 홍원항, 완도항" style="margin-right:6px"><button type="button" onclick="searchPorts('${prefix==='edit'?'edit':'create'}')">검색</button></div><div id="${prefix}PortResults" class="port-results"></div><div class="port-selected" id="${prefix}PortSelected">항구를 검색하여 결과에서 선택해 주세요.</div><p class="muted">카카오 장소 검색 결과에서 항구를 선택하면 주소와 좌표가 저장됩니다. 검색 결과가 없거나 서비스 오류가 발생하면 기존 주요 항구 목록을 사용합니다. 7·8물때는 출조 날짜의 음력일을 기준으로 계산하며, 만조·간조 시간은 표시하지 않습니다. 목록에 없는 항구는 추후 추가할 수 있습니다.</p>`}
+
+function showCreateTrip(){
+  chosenPort=null;
+  $('view').innerHTML = `<h2>출조 등록</h2><div class="card">
+    <p class="muted">회원이 직접 출조 일정을 등록할 수 있습니다. 등록하면 즉시 모집 중인 일정에 표시됩니다. 등록자 본인 1명은 자동 확정되며, 동반 인원은 모집 정원 내에서 함께 확정할 수 있습니다. 등록 인원은 모집 정원에 포함됩니다. 선비 금액은 안내용이며 앱에서는 입금을 확인하지 않습니다.</p>
+    <label>출조 등록자 (로그인 계정 · 자동 입력)</label><div class="notice" style="margin-top:6px">${esc(state.profile.nickname)}</div>
+    <label>출조 시작일</label><input type="date" id="memberTripDate">
+    <label>출조 종료일 (당일 출조는 시작일과 동일)</label><input type="date" id="memberTripEndDate">
+     <div class="notice">물때는 출조 날짜를 기준으로 7물때식과 8물때식을 자동 계산합니다. 실제 조석(만조·간조) 정보와는 별개입니다.</div>
+    ${portSearchHtml("member")}
+    <label>출조명 / 어종</label><input id="memberTripTitle" maxlength="100" placeholder="예: 방어 지깅 출조">
+    <label>선사 / 장소</label><input id="memberTripBoat" maxlength="100">
+    <label>선비 (원)</label><input type="number" min="0" step="1" id="memberTripFee">
+    <label>모집 정원 (2~100명)</label><input type="number" min="2" max="100" step="1" id="memberTripCapacity">
+    <label>추가 동반 인원 (본인 제외, 모집 정원 이내)</label><input type="number" min="0" max="99" step="1" value="0" id="memberTripExtraSeats"><p class="muted">본인 1명은 자동 등록됩니다. 추가 인원도 같은 신청 건으로 확정됩니다.</p>
+    <label>안내사항</label><textarea id="memberTripNotes" maxlength="500" rows="4"></textarea>
+    <button id="memberTripSubmit" onclick="submitMemberTrip()">출조 등록하기</button>
+  </div>`;
+}
+async function submitMemberTrip(){
+  const item={date:$('memberTripDate').value,endDate:$('memberTripEndDate').value||$('memberTripDate').value,title:$('memberTripTitle').value.trim(),boat:$('memberTripBoat').value.trim(),fee:Number($('memberTripFee').value),capacity:Number($('memberTripCapacity').value),extraSeats:Number($('memberTripExtraSeats').value),port:chosenPort,notes:$('memberTripNotes').value.trim()};
+  if(!item.date||!item.title||!item.boat||$('memberTripFee').value===''||$('memberTripCapacity').value===''||!Number.isInteger(item.fee)||item.fee<0||!Number.isInteger(item.capacity)||item.capacity<2||item.capacity>100){msg('날짜, 출조명, 선사, 선비, 정원을 올바르게 입력해 주세요.');return;}
+  if($('memberTripExtraSeats').value===''||!Number.isInteger(item.extraSeats)||item.extraSeats<0||1+item.extraSeats>item.capacity){msg('본인 포함 모집 정원을 초과할 수 없습니다.');return;}
+  if(item.endDate<item.date){msg('종료일은 시작일 이후여야 합니다.');return;}
+  if(!chosenPort){msg('출항지를 검색한 뒤 결과에서 선택해 주세요.');return;}
+  if(!confirm('본인 포함 '+(1+item.extraSeats)+'명이 자동 확정됩니다. 출조를 등록하고 모집을 시작하시겠습니까?'))return;
+  const button=$('memberTripSubmit');button.disabled=true;
+  try{await call('createTrip',token,item);active='trips';await refresh();msg('출조 등록 완료');}
+  catch(e){button.disabled=false;msg(e.message);}
+}
+
+function showApplyTrips() {
+  const items = visibleTrips().filter(t => t.status === 'open')
+    .slice().sort((a,b) => a.date.localeCompare(b.date));
+  $('view').innerHTML = '<h2>출조 신청</h2><p class="muted">모집 중인 출조를 선택해 신청하세요. 정원이 찬 경우 대기 신청으로 접수됩니다.</p>' +
+    (items.length ? '' : '<div class="card muted">현재 모집 중인 출조가 없습니다.</div>') +
+    items.map(t => {
+      const mine = state.regs.find(r => r.tripId === t.id &&
+        r.memberId === state.profile.id && ['confirmed','pending','waitlist','cancel_requested'].includes(r.status));
+      return `<div class="card"><h3>${esc(t.title)}</h3>
+        <div class="muted">등록자: ${esc(t.creatorNickname||'기존 일정 · 미확인')}</div><div class="muted">출항지: ${esc(t.departurePort||'미등록')}</div>
+        <div class="muted">${esc(tripDateRange(t))} · ${tideText(t)} · ${esc(t.departurePort||"출항지 미등록")} · ${esc(t.boat)} · ${money(t.fee)}</div>
+        <p>${t.filled}/${t.capacity}명 · 대기 ${t.waiting}건</p>
+        <div class="actions">${mine ? `<span class="pill">신청 상태: ${esc(status(mine.status))}</span>` : ''}
+        ${!mine || mine.status==='confirmed' ? `<button data-apply-trip="${esc(t.id)}">${mine?'추가 신청':t.filled >= t.capacity ? '대기 신청' : '출조 신청'}</button>` : ''}
+        <button class="secondary" data-trip-detail="${esc(t.id)}">상세 보기</button></div></div>`;
+    }).join('');
+  document.querySelectorAll('[data-apply-trip]').forEach(b =>
+    b.addEventListener('click', () => apply(b.dataset.applyTrip)));
+  document.querySelectorAll('[data-trip-detail]').forEach(b =>
+    b.addEventListener('click', () => showTripDetail(b.dataset.tripDetail)));
+}
+function showTripDetail(id) {
+  babaPush({kind:'detail',id,tab:active});
+  const t = state.trips.find(x => x.id === id);
+  if (!t || t.status === 'deleted') { msg('출조 일정을 찾을 수 없습니다.'); showTrips(); return; }
+
+  const archived=isPastTrip(t);
+  const canManage=canEditTrip(t)&&!archived;
+  const regs = state.regs.filter(r => r.tripId === id);
+  // 최초 신청 시각을 기준으로 정렬하고, 동일 시각이면 시트의 원래 행 순서를 사용합니다.
+  // 취소 여부와 관계없이 신청 순서는 변하지 않습니다.
+  const applicationOrder = (a,b) => String(a.createdAt||'').localeCompare(String(b.createdAt||'')) || Number(a.queueOrder||0)-Number(b.queueOrder||0);
+  const applicants = regs.filter(r => ['confirmed', 'pending', 'cancel_requested', 'cancelled'].includes(r.status)).sort(applicationOrder);
+  const cancelled = applicants.filter(r => r.status === 'cancelled');
+  const waiting = regs.filter(r => r.status === 'waitlist').sort((a,b) => Number(a.queueOrder) - Number(b.queueOrder));
+  const available = Math.max(0, Number(t.capacity) - Number(t.filled));
+  const row = r => `
+    <div style="padding:10px 0;border-bottom:1px solid #eee">
+      <div class="row">
+        <div>
+          <b style="${r.status==='cancelled'?(String(r.legacyNote||'').includes('양도 전체 취소 →')?'color:#1769c2':'color:#c62828'):''}">${esc(r.displayName || '이름 없음')}</b>
+          · ${Number(r.seats) || 1}명
+          · <span style="${r.status==='cancelled'?(String(r.legacyNote||'').includes('양도 전체 취소 →')?'color:#1769c2;font-weight:700':'color:#c62828;font-weight:700'):''}">${r.status==='cancelled'&&String(r.legacyNote||'').includes('양도 전체 취소 →')?'양도 취소':esc(status(r.status))}</span>
+          ${r.status==='cancelled'&&String(r.legacyNote||'').includes('양도 전체 취소 →')?`<div style="color:#1769c2;font-size:13px">양수자: ${esc((String(r.legacyNote).split('양도 전체 취소 →').pop()||'').split(' / ')[0])}</div>`:''}
+          ${(state.transferHistory||[]).filter(x=>String(x.registrationId)===String(r.id)).map(x=>`<div style="color:#1769c2;font-size:13px">양도 승인: ${esc(x.toNickname)} · ${Number(x.seats)||1}명${x.decidedAt?' · '+esc(x.decidedAt):''}</div>`).join('')}
+          ${admin() ? `<div class="muted">신청번호: ${esc(r.id)}</div>` : ''}
+        </div>
+        ${canManage && r.status === 'waitlist' ? `<div class="muted">대기 ${waiting.findIndex(x => x.id === r.id) + 1}순위 · ${Number(r.seats)||1}명 ${available>0 ? '· 확정 가능 '+Math.min(available,Number(r.seats)||1)+'명' : '· 빈자리 없음'}</div>` : ''}
+        ${canManage && ['pending', 'confirmed', 'waitlist'].includes(r.status)
+          ? `<button class="danger" data-admin-cancel="${esc(r.id)}">신청 취소</button>`
+          : ''}
+        ${canManage && r.status === 'pending' ? `<button data-creator-approve="${esc(r.id)}">신청 승인</button>` : ''}
+        ${canManage && r.status === 'cancel_requested' ? `<button data-creator-cancel-decision="${esc(r.id)}" data-accept="true">취소 승인</button><button class="secondary" data-creator-cancel-decision="${esc(r.id)}" data-accept="false">취소 반려</button>` : ''}
+        ${canManage && r.status === 'waitlist' ? `<button class="secondary" data-promote-waitlist="${esc(r.id)}" ${available < 1 || waiting[0]?.id !== r.id ? 'disabled' : ''}>${available>0&&available<Number(r.seats||1)?'부분 확정 ('+available+'명)':'대기자 확정'}</button>` : ''}
+      </div>
+    </div>`;
+
+  $('view').innerHTML = `
+    <div class="actions" style="margin-bottom:12px">
+      <button class="secondary" id="backToTrips">← ${archived?'지난 출조 목록':'출조 일정'}으로</button>
+      ${!archived && canEditTrip(t) ? '<button class="secondary" id="editTripButton">✏️ 출조 일정 수정</button>' : ''}
+       ${!pendingMember() && !archived && t.status === 'open' && !regs.some(r => r.memberId === state.profile.id && ['pending','waitlist','cancel_requested'].includes(r.status)) ? '<button id="detailApplyButton">출조 신청 / 추가 신청</button>' : ''}
+       ${admin() && !archived ? '<button class="danger" id="deleteTripButton">🗑️ 출조 삭제</button>' : ''}
+    </div>
+    <div class="card">
+      <h2>${esc(t.title)}</h2>
+      <p><b>등록자:</b> ${esc(t.creatorNickname||'기존 일정 · 미확인')}</p>
+      <p><b>출조 기간:</b> ${esc(tripDateRange(t))}</p>
+       <p><b>물때:</b> ${tideDetail(t)}</p>
+      <p><b>출항지:</b> ${esc(t.departurePort||"미등록")} ${t.portAddress?`<span class="muted">(${esc(t.portAddress)})</span>`:""}</p>
+      <p><b>선사/장소:</b> ${esc(t.boat)}</p>
+      <p><b>선비:</b> ${money(t.fee)}</p>
+      <p><b>모집 인원:</b> ${t.filled}/${t.capacity}명 · 대기 ${t.waiting}건</p>
+      <p><b>모집 상태:</b> ${t.status === 'open' ? '모집중' : t.status === 'draft' ? '모집전' : '마감'}</p>
+      <p><b>안내사항:</b> ${esc(t.notes || '없음')}</p>
+    </div>
+    ${!archived && String(t.creatorId)===String(state.profile.id) && !admin() ? `<div class="card"><h3>이 출조의 취소 승인 요청</h3><p class="muted">본인이 등록한 출조의 취소 요청만 승인·반려할 수 있습니다.</p><div id="detailCreatorCancellations">불러오는 중...</div></div>` : ''}
+    ${`<div class="card"><h3>신청자 명단 (${applicants.length}건 · 취소 ${cancelled.length}건)</h3>
+        ${applicants.length ? applicants.map(row).join('') : '<p class="muted">신청 기록이 없습니다.</p>'}
+      </div>
+      <div class="card"><h3>대기자 명단 (${waiting.length}건)</h3>
+        ${waiting.length ? waiting.map(row).join('') : '<p class="muted">대기자가 없습니다.</p>'}
+      </div>`}`;
+
+  if ($('detailCreatorCancellations')) { $('detailCreatorCancellations').dataset.tripId=id; loadCreatorCancellations(id, 'detailCreatorCancellations'); }
+  $('backToTrips').addEventListener('click',()=>{if(babaNavStack.length)goBabaBack();else{active=archived?'past':'trips';render()}});
+  if ($('detailApplyButton')) $('detailApplyButton').addEventListener('click', () => apply(id));
+  if (!archived && canEditTrip(t)) $('editTripButton').addEventListener('click', () => editTrip(id));
+   if (admin() && !archived) $('deleteTripButton').addEventListener('click', () => deleteTrip(id));
+
+  document.querySelectorAll('[data-creator-approve]').forEach(button=>button.addEventListener('click',async()=>{
+    if(!confirm('이 신청을 승인하시겠습니까?'))return;
+    button.disabled=true;
+    try{await call('approve',token,button.dataset.creatorApprove);state=await call('data',token);showTripDetail(id);msg('신청을 승인했습니다.')}
+    catch(e){button.disabled=false;msg(e.message)}
+  }));
+  document.querySelectorAll('[data-creator-cancel-decision]').forEach(button=>button.addEventListener('click',async()=>{
+    const accept=button.dataset.accept==='true';
+    if(!confirm('취소 요청을 '+(accept?'승인':'반려')+'하시겠습니까?'))return;
+    button.disabled=true;
+    try{await call('decideCancellation',token,button.dataset.creatorCancelDecision,accept);state=await call('data',token);showTripDetail(id);msg('취소 요청을 처리했습니다.')}
+    catch(e){button.disabled=false;msg(e.message)}
+  }));
+
+  document.querySelectorAll('[data-promote-waitlist]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const registrationId = button.dataset.promoteWaitlist;
+      const reg = state.regs.find(r => r.id === registrationId);
+      if (!confirm(`${reg?.displayName || '대기자'} 신청 ${Number(reg?.seats)||1}명 중 ${Math.min(Math.max(0,Number(t.capacity)-Number(t.filled)),Number(reg?.seats)||1)}명을 확정하시겠습니까?\n남은 인원은 1순위 대기 상태로 유지됩니다. 실제 정원과 순서는 서버에서 다시 검증합니다.`)) return;
+      button.disabled = true;
+      try {
+        await call('promoteWaitlist', token, registrationId);
+        state = await call('data', token);
+        showTripDetail(id);
+        msg('대기자가 확정되었습니다.');
+      } catch (e) {
+        button.disabled = false;
+        msg(e.message);
+      }
+    });
+  });
+
+  document.querySelectorAll('[data-admin-cancel]').forEach(button => {
+    button.addEventListener('click', async () => {
+      const registrationId = button.dataset.adminCancel;
+      const reg = state.regs.find(r => r.id === registrationId);
+      if (!confirm(`${reg ? reg.displayName || '이 신청자' : '이 신청'}의 신청을 취소하시겠습니까?\n취소 후 자동 환불이나 대기자 자동 승격은 이루어지지 않습니다.`)) return;
+      button.disabled = true;
+      try {
+        await call('creatorCancelRegistration', token, registrationId);
+        state = await call('data', token);
+        showTripDetail(id);
+        msg('신청이 취소되었습니다.');
+      } catch (e) {
+        button.disabled = false;
+        msg(e.message);
+      }
+    });
+  });
+}
+
+
+async function deleteTrip(id) {
+  if (!admin()) { msg('운영진만 출조를 삭제할 수 있습니다.'); return; }
+  const t = state.trips.find(x => x.id === id);
+  if (!t || t.status === 'deleted') { msg('출조 일정을 찾을 수 없습니다.'); return; }
+  const count = state.regs.filter(r => r.tripId === id && ['pending','confirmed','waitlist','cancel_requested'].includes(r.status)).length;
+  if (count > 0) {
+    msg('현재 신청 또는 대기 중인 기록이 ' + count + '건 있어 삭제할 수 없습니다.');
+    return;
+  }
+  if (!confirm('[' + t.title + '] 출조를 삭제 처리하시겠습니까?\n원본 데이터는 보존되고 회원 화면에서 숨겨집니다.')) return;
+  const button = $('deleteTripButton');
+  if (button) button.disabled = true;
+  try {
+    await call('deleteTripSafely', token, id);
+    state = await call('data', token);
+    showTrips();
+    msg('출조가 안전 삭제 처리되었습니다.');
+  } catch (e) {
+    msg(e.message);
+    if (button) button.disabled = false;
+  }
+}
+
+function status(s){return ({pending:'승인 대기',confirmed:'확정',cancel_requested:'취소 승인 대기',waitlist:'대기',cancelled:'취소',paid:'입금 완료',partial:'부분 입금',unconfirmed:'입금 미확인'})[s]||s}
+async function apply(id){if(pendingMember())return msg('가입 승인 후 신청할 수 있습니다.');const trip=state.trips.find(t=>t.id===id);if(!trip)return msg('출조 일정을 찾을 수 없습니다.');const raw=prompt('신청 인원 (1~'+trip.capacity+'명). 기존 확정 인원이 있으면 추가 신청으로 접수됩니다.','1');if(raw===null)return;const seats=Number(raw);if(!Number.isInteger(seats)||seats<1||seats>Number(trip.capacity))return msg('신청 인원은 1~'+trip.capacity+'명으로 입력하세요.');try{const r=await call('register',token,id,seats);msg(r.pendingSeats && r.waitlistSeats ? `신청 ${r.pendingSeats}명(승인 대기), 대기 ${r.waitlistSeats}명 접수` : r.status==='waitlist'?'대기 신청 완료':'신청 접수! 운영진 승인 대기');await refresh()}catch(e){msg(e.message)}}
+let mineHistoryOpen=false;
+function mineRegistrationCard(r,history=false){
+  const t=state.trips.find(x=>String(x.id)===String(r.tripId));
+
+  const actions=history?'':`<div class="actions"><button type="button" class="secondary" data-mine-detail="${esc(r.tripId)}">상세 보기 · 신청자 명단</button>${['pending','waitlist'].includes(r.status)?`<button class="secondary" data-mine-change="${esc(r.id)}">인원 변경</button><button class="danger" data-mine-cancel="${esc(r.id)}">신청 취소</button>`:''}${r.status==='confirmed'?`<button class="danger" data-mine-cancel="${esc(r.id)}">취소 승인 요청</button><button class="secondary" data-mine-transfer="${esc(r.id)}">양도 요청</button>`:''}${r.status==='cancel_requested'?'<span class="pill">취소 승인 대기 (운영진 또는 출조 등록자) · 자리 유지</span>':''}</div>`;
+  return `<div class="card"><h3>${esc(t?.title||'기존 일정')}</h3><div class="muted">${esc(fullDate(t?.date))} · ${tideText(t)} · ${esc(t?.boat||'')} · ${Number(r.seats)||1}명 · ${esc(status(r.status))}</div><p>선비: ${money(Number(t?.fee||0)*(Number(r.seats)||1))}</p>${history?'<span class="pill">지난 출조 · 기록 보관</span>':actions}</div>`;
+}
+function bindMineActions(root){
+  root.querySelectorAll('[data-mine-detail]').forEach(b=>b.onclick=()=>showTripDetail(b.dataset.mineDetail));
+  root.querySelectorAll('[data-mine-change]').forEach(b=>b.onclick=()=>changeMineSeats(b.dataset.mineChange));
+  root.querySelectorAll('[data-mine-cancel]').forEach(b=>b.onclick=()=>cancelReg(b.dataset.mineCancel));
+  root.querySelectorAll('[data-mine-transfer]').forEach(b=>b.onclick=()=>transfer(b.dataset.mineTransfer));
+}
+function renderMineHistory(){
+  const out=$('mineHistoryResults');if(!out)return;
+  const query=($('mineHistoryQuery')?.value||'').trim().toLocaleLowerCase('ko-KR');
+  const from=$('mineHistoryFrom')?.value||'',to=$('mineHistoryTo')?.value||'';
+  if(from&&to&&from>to){out.innerHTML='<p class="muted">시작일이 종료일보다 늦습니다.</p>';return;}
+  const items=state.regs.filter(r=>String(r.memberId)===String(state.profile.id)).map(r=>({r,t:state.trips.find(t=>String(t.id)===String(r.tripId))})).filter(({t})=>t&&isPastTrip(t)&&(!from||t.date>=from)&&(!to||t.date<=to)&&(!query||[t.title,t.boat,t.departurePort,t.creatorNickname,t.date].some(v=>String(v||'').toLocaleLowerCase('ko-KR').includes(query)))).sort((a,b)=>String(b.t.date).localeCompare(String(a.t.date)));
+  out.innerHTML=`<p class="muted">검색 결과 ${items.length}건</p>`+(items.length?items.map(({r})=>mineRegistrationCard(r,true)).join(''):'<div class="card muted">조건에 맞는 지난 출조 신청 기록이 없습니다.</div>');
+}
+let mineStatusFilter='active',mineSortOrder='asc';
+function mineGroup(r){return r.status==='confirmed'?'confirmed':r.status==='pending'?'pending':r.status==='waitlist'?'waitlist':r.status==='cancel_requested'?'cancel_requested':'closed'}
+function showMine(){
+  const items=state.regs.filter(r=>String(r.memberId)===String(state.profile.id)&&validMyTrips().some(t=>String(t.id)===String(r.tripId)));
+  const order={confirmed:0,pending:1,waitlist:2,cancel_requested:3,closed:4};
+  const filtered=items.filter(r=>mineStatusFilter==='all'||(mineStatusFilter==='active'&&mineGroup(r)!=='closed')||mineGroup(r)===mineStatusFilter).sort((a,b)=>{
+    const ad=String(state.trips.find(t=>String(t.id)===String(a.tripId))?.date||'');
+    const bd=String(state.trips.find(t=>String(t.id)===String(b.tripId))?.date||'');
+    return (mineSortOrder==='asc'?ad.localeCompare(bd):bd.localeCompare(ad))||Number(a.queueOrder||0)-Number(b.queueOrder||0);
+  });
+  const groups=[['confirmed','확정'],['pending','승인 대기'],['waitlist','대기'],['cancel_requested','취소 승인 대기'],['closed','취소 완료']];
+  const grouped=groups.map(([key,label])=>{const rs=filtered.filter(r=>mineGroup(r)===key);return rs.length?`<h3 class="group-heading">${label} · ${rs.length}건</h3>${rs.map(r=>mineRegistrationCard(r)).join('')}`:''}).join('');
+  $('view').innerHTML=`<h2>내 신청 내역</h2><p class="muted">진행 중인 출조의 신청만 표시합니다. 완료되거나 삭제된 일정은 자동으로 제외됩니다.</p><div class="card"><div class="grid" style="grid-template-columns:1fr 1fr"><div><label for="mineStatusFilter">진행 상황</label><select id="mineStatusFilter"><option value="active">진행 중 전체</option><option value="all">모든 상태</option><option value="confirmed">확정</option><option value="pending">승인 대기</option><option value="waitlist">대기</option><option value="cancel_requested">취소 승인 대기</option><option value="closed">취소 완료</option></select></div><div><label for="mineSortOrder">출조 날짜 순서</label><select id="mineSortOrder"><option value="asc">가까운 날짜부터</option><option value="desc">먼 날짜부터</option></select></div></div><p class="muted">검색 결과 ${filtered.length}건</p></div>`+(grouped||'<div class="card muted">해당 조건의 신청 내역이 없습니다.</div>');
+  $('mineStatusFilter').value=mineStatusFilter;$('mineSortOrder').value=mineSortOrder;
+  $('mineStatusFilter').onchange=e=>{mineStatusFilter=e.target.value;showMine()};
+  $('mineSortOrder').onchange=e=>{mineSortOrder=e.target.value;showMine()};
+  bindMineActions($('view'));
+  if(validMyTrips().some(t=>String(t.creatorId)===String(state.profile.id))){$('view').insertAdjacentHTML('beforeend','<div class="card"><h3>내가 등록한 출조 · 취소 승인 요청</h3><p class="muted">본인이 등록한 출조의 취소 요청만 승인·반려할 수 있습니다.</p><div id="creatorCancellations">불러오는 중...</div></div>');loadCreatorCancellations()}
+}
+
+async function changeMineSeats(id){
+  const r=state.regs.find(x=>String(x.id)===String(id)&&String(x.memberId)===String(state.profile.id));
+  if(!r||!['pending','waitlist'].includes(r.status))return msg('승인 대기 또는 대기 중인 신청만 인원을 변경할 수 있습니다.');
+  const raw=prompt(`변경할 신청 인원을 입력하세요. (현재 ${r.seats}명)`,String(r.seats));
+  if(raw===null)return;
+  const seats=Number(raw);
+  if(!Number.isInteger(seats)||seats<1||seats>100)return msg('인원은 1~100명 사이의 정수로 입력하세요.');
+  if(seats===Number(r.seats))return;
+  if(!confirm(`${r.seats}명 → ${seats}명으로 변경하시겠습니까?\n정원 및 대기 순서는 서버에서 검증합니다.`))return;
+  try{await call('changeRegistrationSeats',token,id,seats);await refresh();msg('신청 인원이 변경되었습니다.')}catch(e){msg(e.message)}
+}
+
+async function cancelReg(id){
+ const r=state.regs.find(x=>x.id===id);
+ if(!r)return msg('신청 내역이 없습니다.');
+ const confirmed=r.status==='confirmed';
+ const promptText=confirmed?'확정된 출조의 취소 승인을 요청하시겠습니까?\n승인 전까지 출조 인원과 자리는 유지됩니다.':'신청을 취소할까요?';
+ if(!confirm(promptText))return;
+ try{await call(confirmed?'requestMyCancellation':'cancel',token,id);await refresh();msg(confirmed?'취소 승인 요청이 접수되었습니다.':'신청이 취소되었습니다.')}catch(e){msg(e.message)}
+}
+let transferRegistrationId=null,transferCandidates=[];
+function transfer(id){
+  const r=state.regs.find(x=>String(x.id)===String(id)&&String(x.memberId)===String(state.profile.id)&&x.status==='confirmed');
+  if(!r)return msg('본인의 확정 신청만 양도할 수 있습니다.');
+  babaPush({kind:'transfer',id,tab:active});
+  transferRegistrationId=id;transferCandidates=[];
+  const t=state.trips.find(x=>String(x.id)===String(r.tripId));
+  const waiting=state.regs.filter(x=>String(x.tripId)===String(r.tripId)&&x.status==='waitlist').sort((a,b)=>Number(a.queueOrder)-Number(b.queueOrder));
+  const waitSeats=waiting.reduce((n,x)=>n+(Number(x.seats)||1),0);
+  const hasWaiting=waiting.length>0;
+  $('view').innerHTML=`<div class="actions"><button class="secondary" id="transferBack">← 내 신청으로</button></div>
+    <div class="card"><h2>출조 양도 요청</h2><p><b>${esc(t?.title||'출조')}</b> · 현재 확정 ${Number(r.seats)||1}명</p><label for="transferSeats">양도할 자리 수 (1~${Number(r.seats)||1}명)</label><input id="transferSeats" type="number" min="1" max="${Number(r.seats)||1}" step="1" value="${Number(r.seats)||1}"><p class="muted">일부만 양도하면 나머지 자리는 본인 명의로 유지됩니다.</p>
+    <div class="notice"><b>현재 대기 ${waiting.length}건 · 총 ${waitSeats}명</b>${waiting.length?`<div style="margin-top:8px">${waiting.map((x,i)=>`<div>${i+1}순위 · ${esc(x.displayName||'신청자')} · ${Number(x.seats)||1}명</div>`).join('')}</div>`:'<div style="margin-top:5px">현재 대기자가 없습니다.</div>'}</div>
+    <p class="muted">${hasWaiting?"대기자가 있으므로 반드시 1순위 대기자에게만 양도할 수 있습니다. 양도할 자리 수는 선택한 대기자의 신청 인원 이하여야 합니다. 일부만 양도하면 양도받은 인원은 확정되고 나머지는 대기 상태로 유지됩니다.":"대기자가 없는 경우 활성 회원에게 양도할 수 있습니다. 일부 양도 시 남은 인원은 본인에게 유지됩니다."}</p>
+    <label for="transferNickQuery">양수자 닉네임</label><div class="row"><input id="transferNickQuery" maxlength="30" placeholder="닉네임 2글자 이상" style="margin-right:6px"><button id="transferSearch">검색</button></div>
+    <div id="transferSearchResults" aria-live="polite"></div><p class="muted">같은 닉네임이 여러 명이면 회원 구분을 확인해 주세요.</p></div>`;
+  $('transferBack').onclick=()=>{if(babaNavStack.length)goBabaBack();else showMine()};
+  $('transferSearch').onclick=searchTransferNickname;
+  $('transferNickQuery').onkeydown=e=>{if(e.key==='Enter')searchTransferNickname()};
+}
+async function searchTransferNickname(){
+  const q=$('transferNickQuery')?.value.trim()||'';
+  if(q.length<2)return msg('닉네임을 2글자 이상 입력해 주세요.');
+  const target=$('transferSearchResults');target.textContent='검색 중...';
+  try{
+    const results=await call('searchTransferMembers',token,q);
+    if(!$('transferSearchResults'))return;
+    transferCandidates=results;
+    const own=state.regs.find(r=>String(r.id)===String(transferRegistrationId));
+    const statusLabel={confirmed:'확정 참여자',pending:'승인 대기 참여자',waitlist:'대기 참여자',cancel_requested:'취소 승인 대기 · 양도 불가'};
+    const firstWaiting=state.regs.filter(r=>String(r.tripId)===String(own?.tripId)&&r.status==='waitlist').sort((a,b)=>Number(a.queueOrder)-Number(b.queueOrder))[0];
+    const hasWaiting=!!firstWaiting;
+    target.innerHTML=results.length?results.map((m,i)=>{const records=state.regs.filter(r=>String(r.tripId)===String(own?.tripId)&&String(r.memberId)===String(m.id)&&statusLabel[r.status]);const desc=records.map(r=>statusLabel[r.status]+' '+(Number(r.seats)||1)+'명').join(' · ')||'현재 신청 없음';return `<div class="approval-item row"><span><b>${esc(m.nickname)}</b><small class="muted" style="display:block">${esc(desc)} · 회원 구분: ${esc(String(m.id).slice(0,8))}</small></span><button type="button" data-transfer-choice="${i}" ${records.some(r=>r.status==='cancel_requested')||(hasWaiting&&!records.some(r=>r.status==='waitlist'&&String(r.id)===String(firstWaiting.id)))?'disabled':''}>선택</button></div>`}).join(''):'일치하는 가입 회원이 없습니다.';
+    target.querySelectorAll('[data-transfer-choice]').forEach(b=>b.onclick=()=>submitTransferChoice(Number(b.dataset.transferChoice)));
+  }catch(e){target.textContent='';msg(e.message)}
+}
+async function submitTransferChoice(index){
+  const member=transferCandidates[index];if(!member||!transferRegistrationId)return;
+  const own=state.regs.find(r=>String(r.id)===String(transferRegistrationId));
+  const maxSeats=Number(own?.seats)||0,raw=$('transferSeats')?.value;
+  const seats=Number(raw);
+  if(raw===''||!Number.isInteger(seats)||seats<1||seats>maxSeats)return msg('양도할 자리는 1~'+maxSeats+'명 사이로 입력해 주세요.');
+  const waiting=state.regs.filter(r=>String(r.tripId)===String(own?.tripId)&&r.status==='waitlist').sort((a,b)=>Number(a.queueOrder)-Number(b.queueOrder));
+  if(waiting.length){
+    const target=waiting.find(r=>String(r.memberId)===String(member.id));
+    if(String(target?.id)!==String(waiting[0].id))return msg('1순위 대기자가 남아 있어 차순위에게 양도할 수 없습니다.');
+    if(!target)return msg('대기자가 있는 출조는 대기 신청자에게만 양도할 수 있습니다.');
+    if(seats>Number(target.seats))return msg('이 대기자는 '+target.seats+'명을 신청했습니다. 양도 자리 수는 '+target.seats+'명 이하여야 합니다.');
+  }
+  if(!confirm(`${member.nickname} 회원에게 ${seats}명 자리를 양도 요청하시겠습니까?\n${seats<maxSeats?'승인 후 본인에게 '+(maxSeats-seats)+'명 자리가 남습니다.':'승인 후 본인 신청은 취소 이력으로 남습니다.'}`))return;
+  try{await call('requestTransfer',token,transferRegistrationId,member.id,'회원 닉네임 검색 요청',seats);transferRegistrationId=null;await refresh();showMine();msg('운영진에게 양도 승인 요청을 보냈습니다.')}catch(e){msg(e.message)}
+}
+function approvalGroupsHtml(){
+  const regs=state.regs.filter(r=>r.status==='pending'&&state.trips.some(t=>String(t.id)===String(r.tripId)&&t.status!=='deleted'&&!isPastTrip(t)));
+  const grouped=new Map();
+  regs.forEach(r=>{if(!grouped.has(r.tripId))grouped.set(r.tripId,[]);grouped.get(r.tripId).push(r)});
+  if(!grouped.size)return '<p class="muted">처리할 신청 승인 대기가 없습니다.</p>';
+  const groups=Array.from(grouped.entries()).map(([tripId,items])=>({
+    trip:state.trips.find(t=>t.id===tripId),items,tripId
+  })).sort((a,b)=>String(a.trip?.date||'9999').localeCompare(String(b.trip?.date||'9999')));
+  return groups.map(({trip,items,tripId})=>{
+    const pending=items.filter(r=>r.status==='pending').length;
+    const confirmed=items.filter(r=>r.status==='confirmed').length;
+     const cancellation=items.filter(r=>r.status==='cancel_requested').length;
+    const safeKey=encodeURIComponent(tripId);
+    const isOpen=approvalOpenTrips.has(tripId);
+    return `<details class="approval-group" data-approval-trip="${esc(safeKey)}" ${isOpen?'open':''}>
+      <summary><span><b>${esc(trip?.title||'기존 출조')}</b><span class="muted" style="display:block">${esc(trip?tripDateRange(trip):'날짜 미확인')} · ${tideText(trip)} · ${esc(trip?.boat||'')}</span></span><span class="pill">승인 대기 ${pending}건</span></summary>
+      <div class="approval-items">${items.map(r=>{
+
+        return `<div class="approval-item"><b>${esc(r.displayName)}</b> · ${esc(status(r.status))}<div class="muted">${Number(r.seats)||0}명 · 선비 ${money(Number(trip?.fee||0)*(Number(r.seats)||1))}</div><div class="actions">${r.status==='pending'?`<button onclick="approveReg('${esc(r.id)}')">승인</button>`:''}${r.status==='cancel_requested'?`<button data-cancel-decision="${esc(r.id)}" data-request-name="${esc(r.displayName)}" data-accept="true">취소 승인</button><button class="secondary" data-cancel-decision="${esc(r.id)}" data-request-name="${esc(r.displayName)}" data-accept="false">반려 (출조 유지)</button>`:''}</div></div>`;
+      }).join('')}</div></details>`;
+  }).join('');
+}
+const approvalOpenTrips=new Set();
+function showPastTrips(){
+  babaPush({kind:'tab',name:'past'});
+  if(!admin()){active='trips';render();return;}
+  active='past';
+  const items=pastTrips().slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+  $('view').innerHTML=`<div class="actions"><button class="secondary" id="pastBackAdmin">← 운영진 관리</button></div><h2>지난 출조 목록 (${items.length}건)</h2><p class="muted">한국시간 기준 출조 종료일 다음 날부터 자동으로 이곳에 보관됩니다. 원본 일정과 신청자 명단은 삭제되지 않습니다.</p>`+(items.length?items.map(t=>`<div class="card"><h3>${esc(t.title)}</h3><div class="muted">${esc(tripDateRange(t))} · ${esc(t.boat)} · 등록자 ${esc(t.creatorNickname||'미확인')} · ${t.filled}/${t.capacity}명</div><div class="actions"><button class="secondary" data-past-detail="${esc(t.id)}">지난 출조 상세 · 신청자 명단</button></div></div>`).join(''):'<div class="card muted">지난 출조가 없습니다.</div>');
+  $('pastBackAdmin').onclick=()=>{if(babaNavStack.length)goBabaBack();else{active='admin';render()}};
+  $('view').querySelectorAll('[data-past-detail]').forEach(b=>b.onclick=()=>showTripDetail(b.dataset.pastDetail));
+}
+function showAdmin(){
+  if(!admin())return;
+  $('view').innerHTML=`<h2>운영진 관리</h2><div class="card"><div class="row"><div><h3>지난 출조 목록</h3><p class="muted">출조일이 지난 일정과 신청자 명단을 확인할 수 있습니다.</p></div><button type="button" id="openPastTrips">지난 출조 보기</button></div></div>
+    ${superAdmin()?`<div class="card"><h3>회원 계정 관리</h3><p class="muted">닉네임으로 가입 회원을 검색해 비활성화, 재활성화 또는 삭제 처리할 수 있습니다. 기존 출조 기록은 보존됩니다. 진행 중인 신청과 양도 요청은 먼저 처리해야 합니다.</p><label>회원 닉네임 검색</label><div class="row"><input id="manageMemberQuery" placeholder="닉네임 입력" maxlength="30" style="margin-right:6px"><button type="button" id="manageMemberSearchBtn">검색</button></div><div id="manageMemberResults" class="muted">닉네임을 입력하고 검색해 주세요.</div></div>`:''}
+    ${superAdmin()?`<div class="card" style="border:1px solid #c77b81"><h3>전체 출조 일정 초기화 · 최고관리자 전용</h3><p class="muted">모든 출조 일정(지난 일정 포함)을 화면에서 숨깁니다. 신청·대기·취소 요청·양도 기록과 회원 정보는 시트에 그대로 보존됩니다.</p><p class="muted">초기화 대상: <b>${state.trips.length}건</b> · 실행 전 구글 시트를 백업해 주세요.</p><button type="button" class="danger" id="archiveAllTripsBtn">전체 일정 초기화</button></div>`:''}
+    <div class="card"><h3>신청 승인 관리</h3><p class="muted">미처리 신청만 표시됩니다. 승인하면 이 목록에서 자동으로 사라지며 확정 명단은 출조 상세보기에서 확인할 수 있습니다.</p>${approvalGroupsHtml()}</div>
+    <div class="card"><h3>출조 취소 승인 대기</h3><p class="muted">승인 전까지 출조 인원과 자리는 유지됩니다. 승인 시 취소가 확정되며 자동 환불이나 대기자 승격은 하지 않습니다.</p><div id="cancellations">불러오는 중...</div></div>
+     <div class="card"><h3>양도 승인 대기</h3><div id="transfers">불러오는 중...</div></div>`;
+  document.querySelectorAll('[data-approval-trip]').forEach(el=>el.addEventListener('toggle',()=>{
+    const id=decodeURIComponent(el.dataset.approvalTrip);
+    if(el.open)approvalOpenTrips.add(id);else approvalOpenTrips.delete(id);
+  }));
+  if(superAdmin()){
+    $('archiveAllTripsBtn').onclick=archiveAllTripsUI;
+    $('manageMemberSearchBtn').onclick=()=>searchManagedMembersUI();
+    $('manageMemberQuery').addEventListener('keydown',e=>{if(e.key==='Enter')searchManagedMembersUI()});
+  }
+  $('openPastTrips').onclick=showPastTrips;
+  bindCancelDecisionButtons($('view'));
+  loadTransfers();
+  loadCancellations();
+}
+async function archiveAllTripsUI(){
+  if(!superAdmin())return msg('최고관리자만 전체 일정을 초기화할 수 있습니다.');
+  const count=state.trips.length;
+  if(!count)return msg('초기화할 출조 일정이 없습니다.');
+  if(!confirm(`전체 출조 ${count}건을 화면에서 숨기시겠습니까?\n연결된 신청·양도 기록은 시트에 보존됩니다.\n실행 전 시트 백업을 권장합니다.`))return;
+  const typed=prompt('최종 확인: 전체일정초기화 를 정확히 입력하세요.');
+  if(typed!=='전체일정초기화')return msg('확인 문구가 일치하지 않아 중단했습니다.');
+  const btn=$('archiveAllTripsBtn');if(btn)btn.disabled=true;
+  try{const result=await call('archiveAllTrips',token,typed);await refresh();msg(result.message||'전체 일정 초기화 완료');}
+  catch(e){if(btn)btn.disabled=false;msg(e.message)}
+}
+
+async function showRoster(){
+  const isManager=superAdmin();
+  $('view').innerHTML=`<h2>전체 회원 명부</h2><div class="card"><p class="muted">${isManager?'가입 회원 전체 목록입니다. 최고관리자는 회원 권한 변경·삭제가 가능합니다.':'회원 닉네임, 역할, 가입일을 확인할 수 있습니다. 회원 관리 권한은 최고관리자에게만 있습니다.'}</p><label>닉네임 검색</label><input id="rosterFilter" placeholder="닉네임으로 명부 검색"><div id="rosterCount" class="muted">명부 불러오는 중...</div><div id="rosterRows"></div></div>`;
+  try{
+    const members=await call(isManager?'listManagedMembers':'listBabaMemberRoster',token);
+    if(active!=='roster'||!$('rosterRows'))return;
+    const roles={admin:'최고관리자',staff:'운영진',member:'일반회원'};
+    const statuses={active:'활성',pending:'가입 대기',inactive:'비활성',deleted:'삭제됨'};
+    const paint=()=>{
+      const q=$('rosterFilter').value.trim().toLowerCase();
+      const items=members.filter(x=>x.nickname.toLowerCase().includes(q));
+      $('rosterCount').textContent=`전체 ${members.length}명 · 표시 ${items.length}명`;
+      $('rosterRows').innerHTML=items.length?items.map(x=>`<div class="approval-item row"><div><b>${esc(x.nickname)}</b> <span class="pill">${esc(statuses[x.status]||x.status)}</span><div class="muted">${esc(roles[x.role]||x.role)} · 가입일 ${esc(x.createdAt||'확인 불가')}${isManager?' · 회원번호 '+esc(x.id.slice(0,8))+'…':''}</div></div><div class="actions">${!isManager||x.id===state.profile.id||x.role==='admin'||x.status==='deleted'?'':`${x.status==='active'?`<select aria-label="${esc(x.nickname)} 회원 권한" data-roster-role="${esc(x.id)}" style="width:auto;margin:0;padding:9px"><option value="member" ${x.role==='member'?'selected':''}>일반회원</option><option value="staff" ${x.role==='staff'?'selected':''}>운영진</option></select><button class="secondary" data-roster-role-save="${esc(x.id)}" data-member-name="${esc(x.nickname)}">권한 저장</button>`:''}<button class="danger" data-roster-delete="${esc(x.id)}" data-member-name="${esc(x.nickname)}">삭제</button>`}</div></div>`).join(''):'검색 결과가 없습니다.';
+      $('rosterRows').querySelectorAll('[data-roster-role-save]').forEach(b=>b.onclick=async()=>{
+        const id=b.dataset.rosterRoleSave,name=b.dataset.memberName;
+        const selected=$('rosterRows').querySelectorAll('[data-roster-role]');
+        const picker=Array.from(selected).find(el=>el.dataset.rosterRole===id);
+        const member=members.find(x=>x.id===id);
+        if(!picker||!member)return;
+        const next=picker.value;
+        if(next===member.role)return msg('현재 권한과 동일합니다.');
+        const label=next==='staff'?'운영진':'일반회원';
+        if(!confirm(name+' 회원의 권한을 '+label+'(으)로 변경하시겠습니까?\n변경 후 해당 회원은 다시 로그인해야 합니다.'))return;
+        b.disabled=true;
+        try{await call('changeMemberRole',token,id,next);msg(name+' 회원 권한을 '+label+'(으)로 변경했습니다.');await showRoster()}
+        catch(e){b.disabled=false;msg(e.message)}
+      });
+      $('rosterRows').querySelectorAll('[data-roster-delete]').forEach(b=>b.onclick=async()=>{
+        const id=b.dataset.rosterDelete,name=b.dataset.memberName;
+        if(!confirm(name+' 회원 계정을 삭제 처리하시겠습니까?\n로그인이 차단되며 기존 출조 기록은 보존됩니다. 삭제된 계정은 이 화면에서 복구할 수 없습니다.'))return;
+        b.disabled=true;
+        try{await call('manageMemberStatus',token,id,'delete');msg(name+' 회원 삭제 처리 완료');await showRoster()}
+        catch(e){b.disabled=false;msg(e.message)}
+      });
+    };
+    $('rosterFilter').addEventListener('input',paint);
+    paint();
+  }catch(e){if($('rosterCount'))$('rosterCount').textContent='명부 조회 실패: '+e.message;}
+}
+async function searchManagedMembersUI(){
+  if(!superAdmin())return;
+  const q=$('manageMemberQuery').value.trim(),target=$('manageMemberResults');
+  if(!q)return msg('검색할 닉네임을 입력하세요.');
+  target.textContent='검색 중...';
+  try{
+    const items=await call('searchManagedMembers',token,q);
+    if(!target.isConnected)return;
+    const roles={admin:'최고관리자',staff:'운영진',member:'일반회원'};
+    const statuses={active:'활성',inactive:'비활성',deleted:'삭제됨'};
+    target.innerHTML=items.length?items.map(x=>`<div class="approval-item"><b>${esc(x.nickname)}</b> <span class="pill">${esc(statuses[x.status]||x.status)}</span><div class="muted">${esc(roles[x.role]||x.role)} · 회원번호 ${esc(x.id.slice(0,8))}…</div><div class="actions">${x.id===state.profile.id||x.role==='admin'||x.status==='deleted'?'':x.status==='active'?`<button class="secondary" data-manage-member="${esc(x.id)}" data-member-name="${esc(x.nickname)}" data-member-action="deactivate">비활성화</button><button class="danger" data-manage-member="${esc(x.id)}" data-member-name="${esc(x.nickname)}" data-member-action="delete">회원 삭제</button>`:x.status==='inactive'?`<button data-manage-member="${esc(x.id)}" data-member-name="${esc(x.nickname)}" data-member-action="reactivate">재활성화</button><button class="danger" data-manage-member="${esc(x.id)}" data-member-name="${esc(x.nickname)}" data-member-action="delete">회원 삭제</button>`:''}</div></div>`).join(''):'검색된 회원이 없습니다.';
+    target.querySelectorAll('[data-manage-member]').forEach(b=>b.onclick=()=>manageMemberUI(b));
+  }catch(e){target.textContent='조회 실패: '+e.message}
+}
+async function manageMemberUI(button){
+  if(!superAdmin())return;
+  const action=button.dataset.memberAction,id=button.dataset.manageMember,name=button.dataset.memberName;
+  const label={deactivate:'비활성화',reactivate:'재활성화',delete:'삭제 처리'}[action];
+  const warning=action==='delete'?'삭제 처리한 계정은 이 화면에서 복구할 수 없습니다. 출조 기록은 보존됩니다.':'진행 중인 출조 신청이나 양도 요청이 있으면 처리할 수 없습니다.';
+  if(!confirm(name+' 회원을 '+label+'하시겠습니까?\n'+warning))return;
+  button.disabled=true;
+  try{await call('manageMemberStatus',token,id,action);msg(name+' 회원 '+label+' 완료');await searchManagedMembersUI()}
+  catch(e){button.disabled=false;msg(e.message)}
+}
+async function newTrip(){try{await call('createTrip',token,{date:$('tdate').value,title:$('ttitle').value,boat:$('tboat').value,fee:$('tfee').value,capacity:$('tcap').value});msg('출조 등록 완료');await refresh()}catch(e){msg(e.message)}}
+async function approveReg(id){try{await call('approve',token,id);msg('승인 완료');await refresh()}catch(e){msg(e.message)}}
+
+async function loadCreatorCancellations(tripId=null, targetId='creatorCancellations'){
+ const target=$(targetId);if(!target)return;
+ try{
+  const items=(await call('cancellationRequests',token)).filter(x=>state.trips.some(t=>String(t.id)===String(x.tripId)&&String(t.creatorId)===String(state.profile.id) && (!tripId || String(t.id)===String(tripId))));
+  target.innerHTML=items.length?items.map(x=>{const trip=state.trips.find(t=>String(t.id)===String(x.tripId));return `<div class="approval-item"><b>${esc(x.displayName)}</b> · ${Number(x.seats)||1}명<div class="muted">${esc(trip?.title||'출조')} · 요청일 ${esc(x.requestedAt)}</div><div class="actions"><button data-creator-cancel="${esc(x.id)}" data-request-name="${esc(x.displayName)}" data-accept="true">취소 승인</button><button class="secondary" data-creator-cancel="${esc(x.id)}" data-request-name="${esc(x.displayName)}" data-accept="false">반려 (출조 유지)</button></div></div>`}).join(''):'현재 취소 승인 요청이 없습니다.';
+  target.querySelectorAll('[data-creator-cancel]').forEach(b=>b.addEventListener('click',()=>decideCancellationUI(b.dataset.creatorCancel,b.dataset.accept==='true',b)));
+ }catch(e){target.textContent='요청 조회 실패: '+e.message}
+}
+
+function bindCancelDecisionButtons(root){
+ if(!root)return;
+ root.querySelectorAll('[data-cancel-decision]').forEach(button=>button.addEventListener('click',()=>decideCancellationUI(button.dataset.cancelDecision,button.dataset.accept==='true',button)));
+}
+
+async function loadCancellations(){
+ try{
+  const items=await call('cancellationRequests',token);
+  const target=$('cancellations');if(!target)return;
+  target.innerHTML=items.length?items.map(x=>{
+   const trip=state.trips.find(t=>t.id===x.tripId);
+   return `<div class="approval-item"><b>${esc(x.displayName)}</b> · ${Number(x.seats)||1}명
+    <div class="muted">${esc(trip?.title||'기존 출조')} · ${esc(trip?tripDateRange(trip):'날짜 미확인')} · ${esc(trip?.boat||'선박 미등록')} · 요청일 ${esc(x.requestedAt)}</div>
+    <div class="actions"><button data-cancel-decision="${esc(x.id)}" data-request-name="${esc(x.displayName)}" data-accept="true">취소 승인</button>
+    <button class="secondary" data-cancel-decision="${esc(x.id)}" data-request-name="${esc(x.displayName)}" data-accept="false">반려 (출조 유지)</button></div></div>`;
+  }).join(''):'대기 중인 취소 승인 요청 없음';
+  target.querySelectorAll('[data-cancel-decision]').forEach(button=>button.addEventListener('click',()=>{
+   decideCancellationUI(button.dataset.cancelDecision,button.dataset.accept==='true',button);
+  }));
+ }catch(e){msg(e.message)}
+}
+async function decideCancellationUI(id,accept,button){
+ const reg=state.regs.find(r=>r.id===id);
+ if(!confirm(`${button?.dataset?.requestName||reg?.displayName||'신청자'}의 취소 요청을 ${accept?'승인':'반려'}하시겠습니까?\n${accept?'승인 시 출조 자리가 반환됩니다. 자동 환불 및 대기자 승격은 없습니다.':'반려 시 기존 출조 확정이 유지됩니다.'}`))return;
+ button.disabled=true;
+ try{await call('decideCancellation',token,id,accept);const detailTrip=button.closest('#detailCreatorCancellations')?.dataset.tripId;await refresh();if(detailTrip)showTripDetail(detailTrip);msg(accept?'출조 취소를 승인했습니다.':'취소 요청을 반려했습니다.');}
+ catch(e){button.disabled=false;msg(e.message)}
+}
+async function loadTransfers(){try{const a=await call('transferRequests',token);const target=$('transfers');if(!target)return;target.innerHTML=a.length?a.map(x=>{const trip=state.trips.find(t=>String(t.id)===String(x.tripId));return `<div class="approval-item"><div style="font-weight:700;overflow-wrap:anywhere">${esc(trip?.title||'출조 일정 확인 필요')}</div><div class="muted" style="overflow-wrap:anywhere">${esc(trip?tripDateRange(trip):'날짜 미확인')} · ${esc(trip?.boat||'선박 미등록')}</div><div style="margin-top:6px;overflow-wrap:anywhere">${esc(x.fromNickname)} → ${esc(x.toNickname)} · ${Number(x.seats)||1}명</div><div class="actions"><button onclick="decide('${x.id}',true)">승인</button><button class="danger" onclick="decide('${x.id}',false)">거절</button></div></div>`}).join(''):'대기 중인 양도 요청 없음'}catch(e){msg(e.message)}}
+async function decide(id,accept){try{await call('decideTransfer',token,id,accept);msg('양도 요청 처리 완료');await refresh()}catch(e){msg(e.message)}}
+function showAccount(){$('view').innerHTML=`<div class="card"><h2>바바 전용 닉네임</h2><p class="muted">카카오톡 닉네임과 별도로 사용합니다.</p><input id="babaNick" maxlength="20" value="${esc(state.profile.nickname)}"><button onclick="saveBabaNick()">닉네임 저장</button></div>${pendingMember()?'<div class="notice">가입 승인 대기 중입니다. 출조 일정과 출조왕 순위만 조회할 수 있습니다.</div>':''}<div class="card muted">회원번호: <span class="mono">${esc(state.profile.id)}</span></div>`}
+
+function editTrip(id) {
+  babaPush({kind:'edit',id,tab:active});
+  editChosenPort=null;
+  const t = state.trips.find(x => x.id === id);
+  if (!canEditTrip(t)) {
+    msg('본인이 등록한 출조만 수정할 수 있습니다.');
+    return;
+  }
+  if (!t || t.status === 'deleted') {
+    msg('출조 일정을 찾을 수 없습니다.');
+    return;
+  }
+
+  $('view').innerHTML = `
+    <div class="actions">
+      <button class="secondary" id="cancelTripEdit">
+        ← 상세 보기로 돌아가기
+      </button>
+    </div>
+
+    <div class="card">
+      <h2>출조 일정 수정</h2>
+
+      <label>출조 시작일</label>
+      <input type="date" id="editDate" value="${esc(t.date)}">
+      <label>출조 종료일</label>
+      <input type="date" id="editEndDate" value="${esc(t.endDate||t.date)}">
+       <div class="notice">물때는 출조 날짜 변경 시 자동으로 다시 계산됩니다.</div>
+
+      ${portSearchHtml("edit")}
+      <label>출조명 / 어종</label>
+      <input id="editTitle" value="${esc(t.title)}">
+
+      <label>선사 / 선박</label>
+      <input id="editBoat" value="${esc(t.boat)}">
+
+      <label>선비 (원)</label>
+      <input type="number" min="0" id="editFee"
+             value="${Number(t.fee)}">
+
+      <label>모집 정원</label>
+      <input type="number" min="2" max="100"
+             id="editCapacity" value="${Number(t.capacity)}">
+
+      <label>모집 상태</label>
+      <select id="editStatus">
+        <option value="open">모집중</option>
+        <option value="closed">모집마감</option>
+        <option value="draft">모집전</option>
+      </select>
+
+      <label>안내사항</label>
+      <textarea id="editNotes" rows="5"></textarea>
+
+      <div class="actions">
+        <button id="saveTripEdit">변경사항 저장</button>
+        <button class="secondary" id="cancelTripEdit2">
+          취소
+        </button>
+      </div>
+    </div>
+  `;
+
+  if(t.departurePort){editChosenPort={name:t.departurePort,address:t.portAddress,lat:t.portLat,lng:t.portLng};$('editPortSelected').textContent='현재 출항지: '+t.departurePort+' · '+(t.portAddress||'');$('editPortQuery').value=t.departurePort;}
+  $('editStatus').value = t.status;
+  $('editNotes').value = t.notes || '';
+
+  $('cancelTripEdit').onclick = () => {if(babaNavStack.length)goBabaBack();else showTripDetail(id)};
+  $('cancelTripEdit2').onclick = () => {if(babaNavStack.length)goBabaBack();else showTripDetail(id)};
+  $('saveTripEdit').onclick = () => saveTripEdit(id);
+}
+
+async function saveTripEdit(id) {
+  if (!canEditTrip(state.trips.find(t => t.id === id))) {
+    msg('본인이 등록한 출조만 수정할 수 있습니다.');
+    return;
+  }
+
+  const fields = {
+    date: $('editDate').value,
+    endDate: $('editEndDate').value,
+    title: $('editTitle').value.trim(),
+    boat: $('editBoat').value.trim(),
+    fee: Number($('editFee').value),
+    capacity: Number($('editCapacity').value),
+    status: $('editStatus').value,
+    notes: $('editNotes').value,
+    ...(editChosenPort?{port:editChosenPort}:{})
+  };
+
+  if (!fields.date || !fields.title ||
+      $('editFee').value === '' ||
+      $('editCapacity').value === '') {
+    msg('필수 항목을 입력해 주세요.');
+    return;
+  }
+
+  if(fields.endDate<fields.date){msg('종료일은 시작일 이후여야 합니다.');return;}
+  if (!confirm('출조 일정을 수정하시겠습니까?')) return;
+
+  const btn = $('saveTripEdit');
+  btn.disabled = true;
+
+  try {
+    await call('changeTrip', token, id, fields);
+    state = await call('data', token);
+    render();
+    showTripDetail(id);
+    msg('출조 일정이 수정되었습니다.');
+  } catch (e) {
+    msg(e.message);
+    btn.disabled = false;
+  }
+}
+
+
+
+
+
+async function saveBabaNick(){try{await call('setBabaNickname',token,$('babaNick').value);await refresh();msg('닉네임을 저장했습니다.')}catch(e){msg(e.message)}}
+async function loadPendingKakaoUI(){
+ const view=$('view');if(!view||!admin())return;
+ if(view.querySelector('#kakaoPendingList'))return;const section=document.createElement('div');section.className='card';section.innerHTML='<h3>카카오 신규 가입 승인</h3><div id="kakaoPendingList">조회 중...</div>';view.prepend(section);
+ try{const list=await call('pendingKakaoMembers',token);const out=$('kakaoPendingList');if(!out)return;
+ out.innerHTML=list.length?list.map(x=>`<div class="approval-item row"><span>${esc(x.nickname)} <small>${esc(x.createdAt)}</small></span><span><button data-kakao-id="${esc(x.id)}" data-kakao-accept="true">승인</button> <button class="danger" data-kakao-id="${esc(x.id)}" data-kakao-accept="false">반려</button></span></div>`).join(''):'승인 대기 회원이 없습니다.';
+ out.querySelectorAll('[data-kakao-id]').forEach(b=>b.onclick=async()=>{if(!confirm('이 회원의 가입을 '+(b.dataset.kakaoAccept==='true'?'승인':'반려')+'하시겠습니까?'))return;try{await call('decideKakaoMember',token,b.dataset.kakaoId,b.dataset.kakaoAccept==='true');const panel=$('kakaoPendingList')?.closest('.card');if(panel)panel.remove();await loadPendingKakaoUI();msg('처리 완료')}catch(e){msg(e.message)}});
+ }catch(e){const out=$('kakaoPendingList');if(out)out.textContent=e.message;}
+}
+startClub().catch(e=>msg(e.message));
+if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+// 낚시 게임은 사용자가 버튼을 누른 경우에만 실행합니다.
+// 기존 출조 관리 화면의 자동 시작/인증 동작에는 영향을 주지 않습니다.
+let babaGameOpening = false;
+async function launchBabaGameFromTrips(){
+  if(babaGameOpening)return;
+  if(!token || !state)return msg('카카오 로그인 후 이용해 주세요.');
+  if(state.profile?.status !== 'active')return msg('운영진 가입 승인 후 이용할 수 있습니다.');
+  babaGameOpening=true;
+  const button=$('babaGameEntry');
+  if(button)button.disabled=true;
+  // 팝업 차단 방지를 위해 사용자 클릭과 동시에 창을 생성합니다.
+  let gameWindow=null;
+  try {gameWindow=window.open('about:blank','_blank');}catch(e){}
+  try{
+    const response=await call('babaGameLaunch',token);
+    if(!response || typeof response.url!=='string' || !/^https:\/\/lee36848759-hub\.github\.io\/baba-fishing-game\/#launch=/.test(response.url))
+      throw new Error('게임 접속 주소를 확인할 수 없습니다.');
+    if(gameWindow && !gameWindow.closed){gameWindow.location.replace(response.url);}
+    else {window.location.assign(response.url);}
+  }catch(e){
+    if(gameWindow && !gameWindow.closed)gameWindow.close();
+    msg('낚시 게임 연결 실패: '+(e?.message||String(e)));
+  }finally{
+    babaGameOpening=false;
+    if(button)button.disabled=false;
+  }
+}
+</script>
+</body>
+</html>
