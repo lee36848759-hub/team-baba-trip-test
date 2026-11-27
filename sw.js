@@ -1,7 +1,7 @@
 const scope = self.registration.scope;
 const config = new URL('config.js', scope).href;
-const cacheName = 'baba-club-shell-v5-' + scope;
-const assets = ['./','./index.html','./app.js','./manifest.json','./icon192.png','./icon512.png'];
+const cacheName = 'baba-club-shell-v6-' + scope;
+const assets = ['./','./index.html','./app.js','./trip-push.js','./manifest.json','./icon192.png','./icon512.png'];
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
@@ -37,4 +37,22 @@ self.addEventListener('fetch', event => {
     }
     return await cache.match(event.request) || fetch(event.request);
   })());
+});
+
+self.addEventListener('push', event => {
+  if (!event.data) return;
+  const change = event.data.json();
+  if (!/^[a-f0-9-]{36}$/i.test(change.trip)) return;
+  event.waitUntil(self.registration.showNotification(change.title || '팀바바 출조', {
+    body: change.body, icon: new URL('icon192.png', scope).href,
+    tag: 'baba-event-' + change.id, data: {trip: change.trip}
+  }));
+});
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const trip = event.notification.data?.trip;
+  if (!/^[a-f0-9-]{36}$/i.test(trip)) return;
+  const target = new URL('./', scope);
+  target.searchParams.set('trip', trip);
+  event.waitUntil(self.clients.openWindow(target.href));
 });

@@ -1,3 +1,6 @@
 project_id = "team-baba-trip-test"
 [functions.baba-club]
 verify_jwt = false
+
+[functions.baba-trip-push]
+verify_jwt = false
