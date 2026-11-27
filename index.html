@@ -271,17 +271,28 @@ async function searchPorts(mode){
  out.innerHTML='<div class="muted" style="padding:12px">검색 중...</div>';
  try{
   const results=await call('searchDeparturePorts',token,q);
-  portSearchResults=results;
-  out.innerHTML=results.length?results.map((p,i)=>`<button type="button" class="port-choice" data-port-index="${i}"><b>${esc(p.name)}</b><div class="muted">${esc(p.address)} · ${p.source==='kakao'?'카카오 장소':'기존 항구 목록'}</div></button>`).join(''):'<div class="muted" style="padding:12px">등록된 항구가 없습니다. 다른 항구명이나 지역명으로 검색해 주세요.</div>';
+  if(out!==$(prefix+'PortResults')||input.value.trim()!==q)return;
+  out.innerHTML=results.length?results.map((p,i)=>`<button type="button" class="port-choice" data-port-index="${i}"><b>${esc(p.name)}</b><div class="muted">${esc(p.address)} · ${p.source==='kakao'?'카카오 장소':p.source==='address'?'카카오 주소':'기존 항구 목록'}</div></button>`).join(''):'<div class="muted" style="padding:12px">검색 결과가 없습니다. 아래에서 출항지를 직접 입력할 수 있습니다.</div>';
   out.querySelectorAll('[data-port-index]').forEach(b=>b.onclick=()=>{
-   const port=portSearchResults[Number(b.dataset.portIndex)];
+   const port=results[Number(b.dataset.portIndex)];
    if(mode==='edit')editChosenPort=port;else chosenPort=port;
    $(prefix+'PortSelected').textContent='선택한 출항지: '+port.name+' · '+port.address;
    out.innerHTML='';input.value=port.name;
   });
  }catch(e){out.innerHTML='';msg(e.message)}
 }
-function portSearchHtml(prefix){return `<label>출항지 (카카오 장소 검색 · 필수)</label><div class="row"><input id="${prefix}PortQuery" placeholder="예: 오천항, 홍원항, 완도항" style="margin-right:6px"><button type="button" onclick="searchPorts('${prefix==='edit'?'edit':'create'}')">검색</button></div><div id="${prefix}PortResults" class="port-results"></div><div class="port-selected" id="${prefix}PortSelected">항구를 검색하여 결과에서 선택해 주세요.</div><p class="muted">카카오 장소 검색 결과에서 항구를 선택하면 주소와 좌표가 저장됩니다. 검색 결과가 없거나 서비스 오류가 발생하면 기존 주요 항구 목록을 사용합니다. 7·8물때는 출조 날짜의 음력일을 기준으로 계산하며, 만조·간조 시간은 표시하지 않습니다. 목록에 없는 항구는 추후 추가할 수 있습니다.</p>`}
+function useManualPort(prefix){
+ const name=$(prefix+'ManualName').value.trim(), address=$(prefix+'ManualAddress').value.trim();
+ if(!name){msg('직접 입력할 출항지 이름을 적어 주세요.');return;}
+ const port={name,address,source:'manual'};
+ if(prefix==='edit')editChosenPort=port;else chosenPort=port;
+ $(prefix+'PortQuery').value=name;
+ $(prefix+'PortResults').replaceChildren();
+ $(prefix+'PortSelected').textContent='선택한 출항지: '+[name,address].filter(Boolean).join(' · ');
+ $(prefix+'ManualName').closest('details').open=false;
+}
+function portSearchHtml(prefix){return `<label>출항지 (필수)</label><div class="row"><input id="${prefix}PortQuery" maxlength="40" placeholder="항구명, 선사명, 지역명 또는 주소" style="margin-right:6px"><button type="button" onclick="searchPorts('${prefix==='edit'?'edit':'create'}')">검색</button></div><div id="${prefix}PortResults" class="port-results"></div><details><summary>목록에 없는 출항지 직접 입력</summary><label>출항지 이름<input id="${prefix}ManualName" maxlength="100" placeholder="선착장 또는 집결지 이름"></label><label>주소 (선택)<input id="${prefix}ManualAddress" maxlength="200"></label><button type="button" class="secondary" onclick="useManualPort('${prefix}')">이 위치 사용</button></details><div class="port-selected" id="${prefix}PortSelected">검색 결과를 선택하거나 출항지를 직접 입력해 주세요.</div><p class="muted">7·8물때는 출조 날짜의 음력일을 기준으로 계산합니다.</p>`}
+
 
 function showCreateTrip(){
   chosenPort=null;

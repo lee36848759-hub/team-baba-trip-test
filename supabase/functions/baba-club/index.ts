@@ -14,6 +14,20 @@ function reply(value: unknown, status = 200) {
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response(null, {headers});
   if (req.method !== 'POST') return reply({},405);
+  if (new URL(req.url).pathname.endsWith('/redeem-game-ticket')) {
+    const {ticket} = await req.json().catch(()=>({}));
+    if(typeof ticket!=='string'||!/^club1_[0-9a-f]{64}$/.test(ticket)) return reply({},401);
+    const [member]=await sql`
+      with redeemed as (
+        delete from baba_migration.game_launch_tickets
+        where ticket_hash=sha256(convert_to(${ticket},'UTF8')) and expires_at>now()
+        returning member_id
+      )
+      select m->>'id' as id,m->>'nickname' as nickname,(m->>'role'='admin') as "canResetQuota"
+      from redeemed, baba_migration.club_state s, lateral jsonb_array_elements(s.tables->'Members') m
+      where s.singleton and m->>'id'=redeemed.member_id and m->>'status'='active'`;
+    return member ? reply(member) : reply({},401);
+  }
   const authorization=req.headers.get('authorization') || '';
   if (!authorization.startsWith('Bearer ')) return reply({error:'카카오 로그인이 필요합니다.'},401);
   try {
@@ -27,8 +41,21 @@ Deno.serve(async req => {
     const result=await sql.begin(async tx=>{
       const [identity]=await tx`select provider_id from auth.identities where provider='kakao' and user_id=${id}::uuid`;
       if(!identity || !/^\d+$/.test(identity.provider_id)) throw Error('카카오 계정 연결을 확인해 주세요.');
+      if(action==='searchDeparturePorts'){
+        const [state]=await tx`select tables from baba_migration.club_state where singleton`;
+        return await runClub(state.tables,identity.provider_id,action,args);
+      }
       const [state]=await tx`select tables from baba_migration.club_state where singleton for update`;
       if(!state)throw Error('운영 사본을 준비해 주세요.');
+      if(action==='babaGameLaunch'){
+        const member=state.tables.Members.find(m=>String(m.kakaoId)===identity.provider_id);
+        if(!member||member.status!=='active') throw Error('운영진 가입 승인 후 이용할 수 있습니다.');
+        const ticket='club1_'+(crypto.randomUUID()+crypto.randomUUID()).replaceAll('-','');
+        await tx`delete from baba_migration.game_launch_tickets where expires_at<=now()`;
+        await tx`insert into baba_migration.game_launch_tickets(ticket_hash,member_id,expires_at)
+          values(sha256(convert_to(${ticket},'UTF8')),${String(member.id)},now()+interval '5 minutes')`;
+        return {url:'https://lee36848759-hub.github.io/baba-fishing-game/#launch='+ticket};
+      }
       const previous=JSON.stringify(state.tables);
       const result=await runClub(state.tables,identity.provider_id,action,args);
       if(JSON.stringify(state.tables)!==previous) await tx`update baba_migration.club_state set tables=${tx.json(state.tables)} where singleton`;

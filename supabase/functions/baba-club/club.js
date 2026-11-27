@@ -57,9 +57,16 @@ export async function runClub(tables, kakaoId, action, args) {
  async function kakaoPortSearch_(keyword){
    const key=Deno.env.get('KAKAO_REST_API_KEY');
    if(!key)return [];
-   const res=await fetch('https://dapi.kakao.com/v2/local/search/keyword.json?size=15&query='+encodeURIComponent(keyword),{headers:{Authorization:'KakaoAK '+key}});
-   if(!res.ok)return [];
-   return (await res.json()).documents.map(p=>({name:p.place_name,address:p.road_address_name||p.address_name,lat:Number(p.y),lng:Number(p.x),placeId:p.id,placeUrl:p.place_url,source:'kakao'})).filter(p=>p.name&&p.address&&p.lat>=32&&p.lat<=39&&p.lng>=124&&p.lng<=132);
+   async function lookup(kind){
+     const res=await fetch('https://dapi.kakao.com/v2/local/search/'+kind+'.json?size=15&query='+encodeURIComponent(keyword),{headers:{Authorization:'KakaoAK '+key},signal:AbortSignal.timeout(3500)});
+     if(!res.ok)return [];
+     return (await res.json()).documents.map(p=>kind==='keyword'
+       ? {name:p.place_name,address:p.road_address_name||p.address_name,placeId:p.id,source:'kakao',lat:Number(p.y),lng:Number(p.x),query:keyword}
+       : {name:p.road_address?.address_name||p.address_name,address:p.address_name,source:'address',lat:Number(p.y),lng:Number(p.x),query:keyword});
+   }
+   const responses=await Promise.allSettled([lookup('keyword'),lookup('address')]);
+   return responses.flatMap(r=>r.status==='fulfilled'?r.value:[]).filter(p=>p.name&&p.address);
+
  }
 
 const DB = {
@@ -194,18 +201,18 @@ async function searchDeparturePorts(token,keyword){
   if(keyword.length<1||keyword.length>40)fail_('출항지 검색어는 1~40자로 입력하세요.');
   try{
     const results=await kakaoPortSearch_(keyword);
-    if(results&&results.length)return results;
+    if(results.length)return [...results,...fallbackPortSearch_(keyword).filter(p=>!results.some(r=>r.name===p.name))];
   }catch(e){Logger.log('Kakao Local search failed: '+e.message)}
   return fallbackPortSearch_(keyword);
 }
 
 function fallbackPortSearch_(keyword){
   const normalized=String(keyword).toLowerCase().replace(/\s+/g,'');
-  return BABA_PORTS_.filter(([name,region])=>(name+region).toLowerCase().replace(/\s+/g,'').includes(normalized))
+  return BABA_PORTS_.filter(([name,region])=>(name+region).toLowerCase().replace(/\s+/g,'').includes(normalized) || keyword.trim().split(/\s+/).every(word=>(region+name).includes(word)))
     .slice(0,40).map(([name,region])=>({name,address:region+' · 등록된 출항지',lat:'',lng:'',source:'legacy'}));
 }
 
-function createTrip(token,item){active_(auth_(token));return locked_(()=>{
+function createTrip(token,item){active_(auth_(token));return locked_(async()=>{
   const m=auth_(token);active_(m);
   const date=String(item.date||'');
   if(!/^20\d\d-\d\d-\d\d$/.test(date)||isNaN(Date.parse(date))||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)fail_('날짜 형식 오류');
@@ -221,7 +228,7 @@ function createTrip(token,item){active_(auth_(token));return locked_(()=>{
   const totalSeats=1+extraSeats;
   if(totalSeats>capacity)fail_('본인과 동반 인원이 모집 정원을 초과합니다.');
   ensureTripCreatorColumns_();ensureTripTideColumn_();ensureTripPortColumns_();ensureTripEndDateColumn_();
-  const port=validatePort_(item.port);
+  const port=await validatePort_(item.port);
   const id=uid_();
   add_('Trips',{id,date,endDate,title,boat,fee,capacity,status:'open',notes:String(item.notes||'').slice(0,500),createdAt:now_(),creatorId:m.id,creatorNickname:m.nickname,tide:'',...port});
   const registrationId=uid_(),created=now_();
@@ -272,14 +279,19 @@ function ensureTripPortColumns_(){
 
 function ensureTripEndDateColumn_(){const sh=sheet_('Trips'),h=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];if(!h.includes('endDate'))sh.getRange(1,h.length+1).setValue('endDate')}
 
-function validatePort_(obj){
+async function validatePort_(obj){
   const name=String(obj?.name||'').trim();
   if(!name||name.length>100)fail_('출항지를 검색하여 선택해 주세요.');
-  if(obj?.source==='kakao'&&obj?.placeId){
+  if(obj?.source==='manual'){
+    const address=String(obj.address||'').trim();
+    if(address.length>200)fail_('주소는 200자 이내로 입력해 주세요.');
+    return {departurePort:name,portAddress:address,portLat:'',portLng:''};
+  }
+  if((obj?.source==='kakao'&&obj?.placeId)||obj?.source==='address'){
     // 브라우저에서 전달한 장소 정보는 신뢰하지 않고 카카오 API에서 다시 확인합니다.
-    const found=kakaoPortSearch_(name);
+    const found=await kakaoPortSearch_(String(obj.query||name).slice(0,100));
     if(!found)fail_('카카오 장소 확인에 실패했습니다. API 설정을 확인해 주세요.');
-    const match=found.find(p=>p.placeId===String(obj.placeId));
+    const match=found.find(p=>obj.source==='address'?p.source==='address'&&p.address===obj.address:p.source==='kakao'&&p.placeId===String(obj.placeId));
     if(!match)fail_('선택한 장소를 다시 확인할 수 없습니다. 출항지를 재검색해 주세요.');
     return {departurePort:match.name,portAddress:match.address,portLat:match.lat,portLng:match.lng};
   }
@@ -697,7 +709,7 @@ function decideTransfer(token,transferId,accept){active_(auth_(token));return lo
 })}
 
 function changeTrip(token, id, fields) {active_(auth_(token));
-  return locked_(() => {
+  return locked_(async () => {
     const m = auth_(token);active_(m);
     const t = rows_('Trips').find(x => String(x.id) === String(id));
     if (!t) fail_('출조 일정을 찾을 수 없습니다.');
@@ -783,7 +795,7 @@ function changeTrip(token, id, fields) {active_(auth_(token));
       allowed.notes = String(fields.notes).slice(0, 500);
     }
 
-    if (fields.port !== undefined) { const existingPort=String(t.departurePort||''); if(String(fields.port?.name||'')!==existingPort || (fields.port?.source==='kakao' && String(fields.port?.address||'')!==String(t.portAddress||''))){Object.assign(allowed,validatePort_(fields.port)); ensureTripPortColumns_();} }
+    if (fields.port !== undefined) { const existingPort=String(t.departurePort||''); if(String(fields.port?.name||'')!==existingPort || (fields.port?.source && String(fields.port?.address||'')!==String(t.portAddress||''))){Object.assign(allowed,await validatePort_(fields.port)); ensureTripPortColumns_();} }
 
     if (fields.tide !== undefined) { allowed.tide = String(fields.tide || '').trim().slice(0,40); ensureTripTideColumn_(); }
 
