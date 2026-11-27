@@ -117,7 +117,7 @@ function data(token, deferRanking){
  const ranking=deferRanking?null:babaRanking_(rankingYear,{trips:tripRows,registrations:all,members:membersRows});
  const myRanking=ranking?ranking.find(x=>x.id===String(m.id)):null;mark(deferRanking?'rankingDeferred':'ranking');
  mark('response');console.log('[BABA_INITIAL_DATA] '+marks.join(' | '));
- return JSON.parse(JSON.stringify({profile:profile_(m),todayKst:today,trips,regs,payments:[],rankingYear,transferHistory,rankingTop:ranking?ranking.slice(0,10).map(({nickname,count,rank})=>({nickname,count,rank})):null,myRanking:myRanking?{rank:myRanking.rank,count:myRanking.count}:null,members:isAdmin?membersRows.map(x=>({id:x.id,nickname:x.nickname,role:x.role,status:x.status,unpaidCount:Number(x.unpaidCount||0),restrictedUntil:x.restrictedUntil||''})):[]}));
+ return JSON.parse(JSON.stringify({profile:profile_(m),todayKst:today,trips,regs,payments:[],rankingYear,transferHistory,rankingTop:ranking?ranking.slice(0,10).map(({nickname,count,rank})=>({nickname,count,rank})):null,myRanking:myRanking?{rank:myRanking.rank,count:myRanking.count}:null,members:isAdmin?membersRows.filter(x=>x.status!=='deleted').map(x=>({id:x.id,nickname:x.nickname,role:x.role,status:x.status,unpaidCount:Number(x.unpaidCount||0),restrictedUntil:x.restrictedUntil||''})):[]}));
 }
 
 function date_(v){if(v instanceof Date)return Utilities.formatDate(v,TZ,'yyyy-MM-dd');return String(v||'').slice(0,10)}
@@ -638,7 +638,7 @@ function searchManagedMembers(token, keyword){
   if(actor.role!=='admin')fail_('최고관리자만 회원 계정을 관리할 수 있습니다.');
   keyword=String(keyword||'').trim().toLowerCase();
   if(keyword.length<1||keyword.length>30)fail_('검색어는 1~30자로 입력하세요.');
-  return rows_('Members').filter(x=>String(x.nickname||'').toLowerCase().includes(keyword))
+  return rows_('Members').filter(x=>x.status!=='deleted'&&String(x.nickname||'').toLowerCase().includes(keyword))
     .slice(0,40).map(x=>({id:String(x.id),nickname:String(x.nickname),role:String(x.role),status:String(x.status)}));
 }
 
@@ -880,10 +880,16 @@ function cancel(token, registrationId) {active_(auth_(token));
 function listManagedMembers(token){
   const actor=auth_(token);
   if(actor.role!=='admin')fail_('최고관리자만 전체 회원 명부를 조회할 수 있습니다.');
-  return rows_('Members').map(x=>({id:String(x.id),nickname:String(x.nickname||''),role:String(x.role||''),status:String(x.status||''),createdAt:date_(x.createdAt)}))
+  return rows_('Members').filter(x=>x.status!=='deleted').map(x=>({id:String(x.id),nickname:String(x.nickname||''),role:String(x.role||''),status:String(x.status||''),createdAt:date_(x.createdAt)}))
     .sort((a,b)=>a.nickname.localeCompare(b.nickname,'ko'));
 }
 
+function listDeletedMembers(token){
+  admin_(auth_(token));
+  return rows_('Members').filter(x=>x.status==='deleted')
+    .map(x=>({nickname:String(x.nickname||''),role:String(x.role||'member'),status:'deleted',createdAt:date_(x.createdAt)}))
+    .sort((a,b)=>a.nickname.localeCompare(b.nickname,'ko'));
+}
 function listBabaMemberRoster(token){
   auth_(token);
   return rows_('Members')
@@ -896,7 +902,7 @@ function listBabaMemberRoster(token){
     }))
     .sort((a,b)=>a.nickname.localeCompare(b.nickname,'ko'));
 }
-const actions={data,babaQuickStart,getBabaRankingByYear,searchBabaRanking,searchDeparturePorts,createTrip,approve,decideCancellation,promoteWaitlist,creatorCancelRegistration,deleteTripSafely,register,changeRegistrationSeats,searchTransferMembers,requestTransfer,archiveAllTrips,changeMemberRole,manageMemberStatus,searchManagedMembers,cancellationRequests,transferRequests,decideTransfer,changeTrip,setBabaNickname,pendingKakaoMembers,decideKakaoMember,babaGameLaunch,requestMyCancellation,cancel,listManagedMembers,listBabaMemberRoster};
+const actions={data,babaQuickStart,getBabaRankingByYear,searchBabaRanking,searchDeparturePorts,createTrip,approve,decideCancellation,promoteWaitlist,creatorCancelRegistration,deleteTripSafely,register,changeRegistrationSeats,searchTransferMembers,requestTransfer,archiveAllTrips,changeMemberRole,manageMemberStatus,searchManagedMembers,cancellationRequests,transferRequests,decideTransfer,changeTrip,setBabaNickname,pendingKakaoMembers,decideKakaoMember,babaGameLaunch,requestMyCancellation,cancel,listDeletedMembers,listManagedMembers,listBabaMemberRoster};
 if(!Object.hasOwn(actions,action)) throw Error("지원하지 않는 작업입니다.");
 return await actions[action](null,...args);
 }

@@ -687,12 +687,16 @@ async function archiveAllTripsUI(){
   catch(e){if(btn)btn.disabled=false;msg(e.message)}
 }
 
-async function showRoster(){
-  const isManager=superAdmin();
-  $('view').innerHTML=`<h2>전체 회원 명부</h2><div class="card"><p class="muted">${isManager?'가입 회원 전체 목록입니다. 최고관리자는 회원 권한 변경·삭제가 가능합니다.':'회원 닉네임, 역할, 가입일을 확인할 수 있습니다. 회원 관리 권한은 최고관리자에게만 있습니다.'}</p><label>닉네임 검색</label><input id="rosterFilter" placeholder="닉네임으로 명부 검색"><div id="rosterCount" class="muted">명부 불러오는 중...</div><div id="rosterRows"></div></div>`;
+async function showRoster(deleted=false){
+  const canViewDeleted=admin()&&state.profile.status==='active';
+  if(deleted&&!canViewDeleted)return;
+  const isManager=!deleted&&superAdmin();
+  $('view').innerHTML=`<h2>${deleted?'삭제 회원 명부':'전체 회원 명부'}</h2>${canViewDeleted?`<button class="secondary" id="switchRoster">${deleted?'전체 회원 명부로':'삭제 회원 명부'}</button>`:''}<div class="card"><p class="muted">${deleted?'현재 삭제 처리된 회원 목록입니다.':isManager?'가입 회원 전체 목록입니다. 최고관리자는 회원 권한 변경·삭제가 가능합니다.':'회원 닉네임, 역할, 가입일을 확인할 수 있습니다. 회원 관리 권한은 최고관리자에게만 있습니다.'}</p><label>닉네임 검색</label><input id="rosterFilter" placeholder="닉네임으로 명부 검색"><div id="rosterCount" class="muted">명부 불러오는 중...</div><div id="rosterRows"></div></div>`;
+  const target=$('rosterRows');
+  if(canViewDeleted)$('switchRoster').onclick=()=>showRoster(!deleted);
   try{
-    const members=await call(isManager?'listManagedMembers':'listBabaMemberRoster',token);
-    if(active!=='roster'||!$('rosterRows'))return;
+    const members=await call(deleted?'listDeletedMembers':isManager?'listManagedMembers':'listBabaMemberRoster',token);
+    if(active!=='roster'||$('rosterRows')!==target)return;
     const roles={admin:'최고관리자',staff:'운영진',member:'일반회원'};
     const statuses={active:'활성',pending:'가입 대기',inactive:'비활성',deleted:'삭제됨'};
     const paint=()=>{
@@ -724,7 +728,7 @@ async function showRoster(){
     };
     $('rosterFilter').addEventListener('input',paint);
     paint();
-  }catch(e){if($('rosterCount'))$('rosterCount').textContent='명부 조회 실패: '+e.message;}
+  }catch(e){if($('rosterRows')===target)$('rosterCount').textContent='명부 조회 실패: '+e.message;}
 }
 async function searchManagedMembersUI(){
   if(!superAdmin())return;
