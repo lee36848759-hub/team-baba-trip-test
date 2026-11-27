@@ -1,6 +1,6 @@
 const scope = self.registration.scope;
 const config = new URL('config.js', scope).href;
-const cacheName = 'baba-club-shell-v4-' + scope;
+const cacheName = 'baba-club-shell-v5-' + scope;
 const assets = ['./','./index.html','./app.js','./manifest.json','./icon192.png','./icon512.png'];
 
 self.addEventListener('install', event => {
@@ -23,10 +23,10 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET' || !url.href.startsWith(scope) || url.search || url.pathname.includes('/share/')) return;
   event.respondWith((async () => {
     const cache = await caches.open(cacheName);
-    if (url.href === config) {
+    if (url.href === config || event.request.mode === 'navigate' || url.href === scope || url.href === new URL('index.html', scope).href) {
       try {
         const response = await fetch(event.request, {cache:'no-store'});
-        if (!response.ok) throw new Error('Configuration unavailable');
+        if (!response.ok) throw new Error('App resource unavailable');
         await cache.put(event.request, response.clone());
         return response;
       } catch (error) {
