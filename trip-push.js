@@ -1,3 +1,12 @@
+async function pushStep(task, label, milliseconds = 15000) {
+  let timer;
+  try {
+    return await Promise.race([task, new Promise((_, reject) => {
+      timer = setTimeout(() => reject(Error(label + ' 시간이 초과됐습니다. 다시 시도해 주세요.')), milliseconds);
+    })]);
+  } finally { clearTimeout(timer); }
+}
+
 async function tripPushApi(action, fields = {}) {
   const {data} = await clubClient.auth.getSession();
   if (!data.session) throw Error('로그인이 필요합니다.');
@@ -33,13 +42,10 @@ async function showTripPushSettings() {
     return;
   }
   try {
-    const registration = await Promise.race([
-      navigator.serviceWorker.ready,
-      new Promise((_,reject)=>setTimeout(()=>reject(Error('알림 준비가 지연됐습니다. 앱을 다시 열어 주세요.')),12000))
-    ]);
-    let sub = await registration.pushManager.getSubscription();
-    let enabled = !!sub && (await tripPushApi('status',{endpoint:sub.endpoint})).enabled;
-    const {key} = await tripPushApi('key');
+    const registration = await pushStep(navigator.serviceWorker.ready, '앱 알림 준비');
+    let sub = await pushStep(registration.pushManager.getSubscription(), '기기 알림 상태 확인');
+    let enabled = !!sub && (await pushStep(tripPushApi('status',{endpoint:sub.endpoint}), '등록 상태 확인')).enabled;
+    const {key} = await pushStep(tripPushApi('key'), '알림 서버 연결');
     const binary = atob(key.replace(/-/g,'+').replace(/_/g,'/'));
     const applicationServerKey = Uint8Array.from(binary,c=>c.charCodeAt(0));
     function renderButton() {
@@ -54,14 +60,16 @@ async function showTripPushSettings() {
       button.textContent = enabled ? '해제 중…' : '등록 중…';
       try {
         if (enabled) {
-          await clearTripPush();
+          await pushStep(clearTripPush(), '알림 해제');
           enabled = false;
           sub = null;
         } else {
           if (Notification.permission === 'denied') throw Error(blocked);
           // subscribe directly in this tap so mobile browsers can display their permission dialog.
-          sub = sub || await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey});
-          await tripPushApi('on',{subscription:sub.toJSON()});
+          hint.textContent = '휴대폰의 알림 권한과 푸시 서비스 응답을 기다리고 있습니다.';
+          sub = sub || await pushStep(registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey}), '휴대폰 알림 등록', 30000);
+          hint.textContent = '이 기기를 팀바바에 등록하고 있습니다.';
+          await pushStep(tripPushApi('on',{subscription:sub.toJSON()}), '팀바바 기기 등록');
           enabled = true;
         }
         renderButton();
