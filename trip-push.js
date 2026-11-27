@@ -1,4 +1,4 @@
-let pendingTripPushSubscription;
+let tripPushBusy = false;
 
 async function pushStep(task, label, milliseconds = 15000) {
   let timer;
@@ -36,7 +36,9 @@ async function showTripPushSettings() {
   const button = document.getElementById('toggleTripPush');
   if (!button) return;
   const hint = document.getElementById('tripPushHint');
-  const blocked = '알림이 차단돼 있습니다. 브라우저 사이트 설정과 휴대폰 설정에서 알림을 허용한 뒤 계정 메뉴를 다시 열어 주세요.';
+  button.onclick = null;
+  const blocked = '알림이 차단돼 있습니다. 휴대폰 알림 권한 설정에서 허용 방법을 확인해 주세요.';
+  bindTripPushPermissions(button, hint);
   if (!('PushManager' in window) || !('Notification' in window) || !('serviceWorker' in navigator)) {
     hint.textContent = /Android/i.test(navigator.userAgent)
       ? '이 화면에서는 푸시를 사용할 수 없습니다. 같은 바바 주소를 Chrome에서 열어 주세요.'
@@ -47,9 +49,12 @@ async function showTripPushSettings() {
     const registration = await pushStep(navigator.serviceWorker.ready, '앱 알림 준비');
     let sub = await pushStep(registration.pushManager.getSubscription(), '기기 알림 상태 확인');
     let enabled = !!sub && (await pushStep(tripPushApi('status',{endpoint:sub.endpoint}), '등록 상태 확인')).enabled;
-    const {key} = await pushStep(tripPushApi('key'), '알림 서버 연결');
-    const binary = atob(key.replace(/-/g,'+').replace(/_/g,'/'));
-    const applicationServerKey = Uint8Array.from(binary,c=>c.charCodeAt(0));
+    let applicationServerKey;
+    if (!enabled && !sub) {
+      const {key} = await pushStep(tripPushApi('key'), '알림 서버 연결');
+      const binary = atob(key.replace(/-/g, '+').replace(/_/g, '/'));
+      applicationServerKey = Uint8Array.from(binary, char => char.charCodeAt(0));
+    }
     function renderButton() {
       button.disabled = false;
       button.textContent = enabled ? '이 기기 알림 끄기' : '내 출조 알림 받기';
@@ -58,6 +63,11 @@ async function showTripPushSettings() {
     }
     renderButton();
     button.onclick = async () => {
+      if (tripPushBusy) {
+        hint.textContent = '이전 알림 작업이 진행 중입니다. 잠시 뒤 다시 눌러 주세요.';
+        return;
+      }
+      tripPushBusy = true;
       button.disabled = true;
       button.textContent = enabled ? '해제 중…' : '등록 중…';
       try {
@@ -65,10 +75,15 @@ async function showTripPushSettings() {
           await pushStep(clearTripPush(), '알림 해제');
           enabled = false;
           sub = null;
+          button.textContent = '알림 설정 확인 중…';
+          await showTripPushSettings();
+          return;
         } else {
           if (Notification.permission === 'denied') throw Error(blocked);
           if (Notification.permission === 'default') {
-            const permission = await pushStep(Notification.requestPermission(), '알림 권한 확인', 60000);
+            button.textContent = '권한 확인 중…';
+            hint.textContent = '휴대폰에 권한 창이 뜨면 알림을 허용해 주세요.';
+            const permission = await pushStep(Notification.requestPermission(), '알림 권한 확인', 20000);
             if (permission !== 'granted') throw Error(permission === 'denied' ? blocked : '알림 권한 창에서 허용을 선택해 주세요.');
             renderButton();
             button.textContent = '이 기기 등록하기';
@@ -77,14 +92,13 @@ async function showTripPushSettings() {
           }
           hint.textContent = '휴대폰의 알림 권한과 푸시 서비스 응답을 기다리고 있습니다.';
           if (!sub) {
-            if (!pendingTripPushSubscription) {
-              pendingTripPushSubscription = registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey
-              }).finally(() => { pendingTripPushSubscription = null; });
-            }
-            sub = await pushStep(pendingTripPushSubscription, '휴대폰 브라우저의 푸시 응답 대기', 25000);
+            button.textContent = '브라우저 푸시 연결 중…';
+            sub = await pushStep(registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey
+            }), '브라우저 푸시 등록', 12000);
           }
+          button.textContent = '기기 저장 중…';
           hint.textContent = '이 기기를 팀바바에 등록하고 있습니다.';
           await pushStep(tripPushApi('on',{subscription:sub.toJSON()}), '팀바바 기기 등록');
           enabled = true;
@@ -99,6 +113,8 @@ async function showTripPushSettings() {
         } else {
           hint.textContent = error.message || '알림 설정을 확인해 주세요.';
         }
+      } finally {
+        tripPushBusy = false;
       }
     };
   } catch(error) {
@@ -107,4 +123,51 @@ async function showTripPushSettings() {
     button.disabled = false;
     button.onclick = ()=>{button.disabled=true;showTripPushSettings()};
   }
+}
+
+function bindTripPushPermissions(button, hint) {
+  const settings = document.getElementById('tripPushPermissions');
+  const guide = document.getElementById('tripPushPermissionGuide');
+  if (settings.onclick) return;
+
+  const android = /Android/i.test(navigator.userAgent);
+  const installed = matchMedia('(display-mode: standalone)').matches;
+  const steps = document.createElement('p');
+  steps.className = 'muted';
+  if (android && installed) {
+    steps.textContent = '홈 화면에서 팀바바 아이콘을 길게 누르고 ⓘ 앱 정보 → 알림 → 알림 허용을 켜세요. 앱 정보가 없으면 설정 → 애플리케이션 → Chrome → 알림을 확인하세요.';
+  } else if (android) {
+    steps.textContent = 'Chrome 주소창 왼쪽의 사이트 정보 → 권한 → 알림을 허용하세요. 휴대폰 설정 → 애플리케이션 → Chrome → 알림도 확인하세요.';
+  } else {
+    steps.textContent = '브라우저의 사이트 권한에서 알림을 허용하세요. 아이폰은 홈 화면에 추가한 팀바바 앱과 설정 → 알림을 확인하세요.';
+  }
+  const recheck = document.createElement('button');
+  recheck.className = 'secondary';
+  recheck.textContent = '권한 다시 확인';
+  recheck.onclick = () => {
+    if (tripPushBusy || button.disabled) return;
+    button.disabled = true;
+    hint.textContent = '이 기기의 알림 설정을 확인하고 있습니다.';
+    showTripPushSettings();
+  };
+  guide.append(steps, recheck);
+
+  settings.onclick = async () => {
+    guide.hidden = !guide.hidden;
+    settings.setAttribute('aria-expanded', String(!guide.hidden));
+    if (guide.hidden || tripPushBusy || !('Notification' in window) ||
+        Notification.permission !== 'default' || !('PushManager' in window)) return;
+    tripPushBusy = true;
+    try {
+      const permission = await pushStep(Notification.requestPermission(), '알림 권한 확인', 20000);
+      if (!button.isConnected) return;
+      hint.textContent = permission === 'granted'
+        ? '알림을 허용했습니다. 내 출조 알림 받기를 눌러 기기 등록을 마쳐 주세요.'
+        : '위 경로에서 알림 권한을 확인한 뒤 권한 다시 확인을 눌러 주세요.';
+    } catch (error) {
+      if (button.isConnected) hint.textContent = error.message;
+    } finally {
+      tripPushBusy = false;
+    }
+  };
 }
