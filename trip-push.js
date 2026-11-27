@@ -65,9 +65,21 @@ async function showTripPushSettings() {
           sub = null;
         } else {
           if (Notification.permission === 'denied') throw Error(blocked);
-          // subscribe directly in this tap so mobile browsers can display their permission dialog.
+          if (Notification.permission === 'default') {
+            const permission = await pushStep(Notification.requestPermission(), '알림 권한 확인', 60000);
+            if (permission !== 'granted') throw Error(permission === 'denied' ? blocked : '알림 권한 창에서 허용을 선택해 주세요.');
+            renderButton();
+            button.textContent = '이 기기 등록하기';
+            hint.textContent = '알림을 허용했습니다. 아래 버튼을 눌러 기기 등록을 마쳐 주세요.';
+            return;
+          }
           hint.textContent = '휴대폰의 알림 권한과 푸시 서비스 응답을 기다리고 있습니다.';
-          sub = sub || await pushStep(registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey}), '휴대폰 알림 등록', 30000);
+          const slow = setTimeout(()=>{
+            hint.textContent = '휴대폰 푸시 서비스의 응답을 기다리는 중입니다. 계속 지연되면 Chrome에서 같은 주소를 열어 등록해 주세요.';
+          }, 30000);
+          try {
+            sub = sub || await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey});
+          } finally { clearTimeout(slow); }
           hint.textContent = '이 기기를 팀바바에 등록하고 있습니다.';
           await pushStep(tripPushApi('on',{subscription:sub.toJSON()}), '팀바바 기기 등록');
           enabled = true;
