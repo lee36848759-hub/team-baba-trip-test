@@ -76,6 +76,8 @@ async function kakaoLogin(){
 }
 async function startClub(){
  const url=new URL(location.href);
+ const shared=url.searchParams.get('trip');
+ if(shared && /^[a-f0-9-]{36}$/i.test(shared))sessionStorage.setItem('baba-shared-trip',shared);
  const fragment=new URLSearchParams(url.hash.slice(1));
  const field=name=>url.searchParams.get(name)||fragment.get(name)||'';
  const code=field('code');
@@ -149,6 +151,13 @@ async function refresh(){
     ['create','mine'].forEach(n=>$('tab-'+n).style.display=pendingMember()?'none':'');$('tab-admin').style.display=admin()?'':'none';
     $('tab-roster').style.display='';
     render();
+    const sharedId=sessionStorage.getItem('baba-shared-trip');
+    if(sharedId){
+      sessionStorage.removeItem('baba-shared-trip');
+      const trip=state.trips.find(item=>item.id===sharedId && ['open','closed'].includes(item.status));
+      if(trip)showTripDetail(trip.id);
+      else msg('공유된 일정을 현재 볼 수 없습니다.');
+    }
   }catch(e){
     if(token!==requestedToken)return;
     const message=String(e?.message||e||'알 수 없는 오류');
@@ -323,6 +332,7 @@ function showApplyTrips() {
   document.querySelectorAll('[data-trip-detail]').forEach(b =>
     b.addEventListener('click', () => showTripDetail(b.dataset.tripDetail)));
 }
+const BABA_SHARE_IDS=new Set(["072f7078-ae2f-4d0e-b53a-380e4e9bcaed", "09df3576-76c7-4f6f-ae9a-d4ba6e206511", "0bd14a2a-3fed-403c-8758-a0191dc0a1b0", "10fcbef3-ad47-4cf8-b083-7f88200b6c6f", "13c8c75d-4a10-449e-a5db-b3bb88ef723d", "1a57ceb1-183f-4b8c-b7af-a17cb17ea57b", "1f05eb29-6970-423f-a48d-51999744e9e5", "34d714e9-02ce-4863-93b8-3d4ab1a4c371", "3db29815-64e6-4d67-bd62-337520869931", "5f6f5d3c-c92e-4ad1-ad4b-dc4c6dc5b2ac", "70de60bd-2e9b-44af-bdc5-52605977c386", "7ac0bfd3-e8e3-41b8-afbb-f270d47e169b", "7d68c922-ff4f-49f7-8937-beb6198f321f", "87aa133b-8350-4abd-89b6-1f2486ca3809", "9ec3bb12-648d-4d16-b43c-8829667406b0", "a7451adf-a0e1-451f-b0ae-37c95cc1e74d", "b2e6fc97-00f1-4493-be40-e25986bb932a", "b969b24d-64f7-43d3-aade-9e58c36be551", "c27a5490-94b3-4cd2-929e-72f5be355139", "ceef52a1-db46-4b3c-80dd-356632324ec9", "d5cdcdf8-12aa-434c-b6b3-b5e963b39afd", "dd875abc-e9bb-437b-aba9-846416bc198d", "e7ea5fa3-0f2d-4993-9c2e-a0d2b4252fd2", "f185225c-717b-4e48-90e8-5ea2ccbb48f1", "f343a194-e3e1-4cce-adec-3b38f2bc592c", "fb3c6300-61b0-43cc-8a62-df4dc0ebe41f"]);
 function showTripDetail(id) {
   babaPush({kind:'detail',id,tab:active});
   const t = state.trips.find(x => x.id === id);
@@ -361,6 +371,7 @@ function showTripDetail(id) {
 
   $('view').innerHTML = `
     <div class="actions" style="margin-bottom:12px">
+      ${['open','closed'].includes(t.status)?'<button class="secondary" id="shareTrip">일정 공유</button><button class="secondary" id="copyTrip">링크 복사</button>':''}
       <button class="secondary" id="backToTrips">← ${archived?'지난 출조 목록':'출조 일정'}으로</button>
       ${!archived && canEditTrip(t) ? '<button class="secondary" id="editTripButton">✏️ 출조 일정 수정</button>' : ''}
        ${!pendingMember() && !archived && t.status === 'open' && !regs.some(r => r.memberId === state.profile.id && ['pending','waitlist','cancel_requested'].includes(r.status)) ? '<button id="detailApplyButton">출조 신청 / 추가 신청</button>' : ''}
@@ -387,6 +398,21 @@ function showTripDetail(id) {
       </div>`}`;
 
   if ($('detailCreatorCancellations')) { $('detailCreatorCancellations').dataset.tripId=id; loadCreatorCancellations(id, 'detailCreatorCancellations'); }
+  if($('shareTrip')){
+    const hasCard=BABA_SHARE_IDS.has(id);
+    const link=new URL(hasCard?'share/'+encodeURIComponent(id)+'.html':'?trip='+encodeURIComponent(id),location.href).href;
+    const clipboardText=hasCard?link:t.title+' · '+tripDateRange(t)+' · 정원 '+t.capacity+'명\n'+link;
+    async function copyLink(){
+      try{await navigator.clipboard.writeText(clipboardText);msg('출조 링크를 복사했습니다. 톡방에 붙여넣으세요.')}
+      catch{prompt('아래 출조 링크를 복사해 주세요.',clipboardText)}
+    }
+    $('copyTrip').onclick=copyLink;
+    $('shareTrip').onclick=async()=>{
+      if(!navigator.share)return copyLink();
+      try{await navigator.share({title:t.title,text:t.title+' · '+tripDateRange(t)+' · 정원 '+t.capacity+'명',url:link})}
+      catch(error){if(error.name!=='AbortError')await copyLink()}
+    };
+  }
   $('backToTrips').addEventListener('click',()=>{if(babaNavStack.length)goBabaBack();else{active=archived?'past':'trips';render()}});
   if ($('detailApplyButton')) $('detailApplyButton').addEventListener('click', () => apply(id));
   if (!archived && canEditTrip(t)) $('editTripButton').addEventListener('click', () => editTrip(id));

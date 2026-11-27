@@ -1,0 +1,4 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><title>TEAM BABA 출조 일정</title><p><a href="/team-baba-trip-test/">출조 일정 열기</a></p><script>
+const trip=location.pathname.match(/\/share\/([a-f0-9-]{36})\.html$/i);
+if(trip)location.replace('../?trip='+encodeURIComponent(trip[1]));
+</script></html>
