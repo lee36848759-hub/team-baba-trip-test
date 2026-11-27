@@ -1,6 +1,6 @@
 const scope = self.registration.scope;
 const config = new URL('config.js', scope).href;
-const cacheName = 'baba-club-shell-v9-' + scope;
+const cacheName = 'baba-club-shell-v10-' + scope;
 const assets = ['./','./index.html','./app.js','./trip-push.js','./manifest.json','./icon192.png','./icon512.png'];
 
 self.addEventListener('install', event => {

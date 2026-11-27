@@ -15,7 +15,7 @@ async function requestTripPushPermission() {
     const prompt = Notification.requestPermission();
     const observedGrant = new Promise(resolve => {
       permissionCheck = setInterval(() => {
-        if (Notification.permission === 'granted') resolve('granted');
+        if (Notification.permission !== 'default') resolve(Notification.permission);
       }, 250);
     });
     return await pushStep(Promise.race([prompt, observedGrant]), '알림 권한 확인', 10000);
@@ -103,7 +103,7 @@ async function showTripPushSettings() {
               permission = await requestTripPushPermission();
             } catch (error) {
               openPermissionGuide();
-              throw Error('알림 권한 창의 응답을 받지 못했습니다. 아래에서 휴대폰 권한을 확인하거나 Chrome에서 등록해 주세요.');
+              throw Error('알림 권한 창의 응답이 없습니다. 아래 안내에서 브라우저와 휴대폰의 알림 설정을 확인해 주세요.');
             }
             if (permission !== 'granted') throw Error(permission === 'denied' ? blocked : '알림 권한 창에서 허용을 선택해 주세요.');
             renderButton();
@@ -127,7 +127,7 @@ async function showTripPushSettings() {
         renderButton();
       } catch(error) {
         renderButton();
-        if (error.name === 'NotAllowedError') {
+        if (error.name === 'NotAllowedError' || Notification.permission === 'denied') {
           openPermissionGuide();
           hint.textContent = blocked;
         } else if (error.name === 'AbortError' || error.name === 'NetworkError') {
@@ -157,13 +157,19 @@ function bindTripPushPermissions(button, hint) {
   if (settings.onclick) return openGuide;
 
   const android = /Android/i.test(navigator.userAgent);
+  const samsung = /SamsungBrowser/i.test(navigator.userAgent);
+  const chrome = /Chrome\//i.test(navigator.userAgent) && !/SamsungBrowser|EdgA|OPR|; wv\)|KAKAOTALK/i.test(navigator.userAgent);
   const installed = matchMedia('(display-mode: standalone)').matches;
   const steps = document.createElement('p');
   steps.className = 'muted';
   if (android && installed) {
-    steps.textContent = '홈 화면에서 팀바바 아이콘을 길게 누르고 ⓘ 앱 정보 → 알림 → 알림 허용을 켜세요. 앱 정보가 없거나 계속 시간이 초과되면 아래 주소를 복사해 Chrome 주소창에 붙여넣으세요. 주소창 왼쪽 사이트 정보 → 권한 → 알림을 허용한 다음 계정에서 내 출조 알림 받기를 누르세요.';
+    steps.textContent = '홈 화면에서 팀바바 아이콘을 길게 누르고 ⓘ 앱 정보 → 알림 → 알림 허용을 켜세요. 앱 정보가 없으면 아래에서 Chrome으로 열어 등록할 수 있습니다.';
+  } else if (android && samsung) {
+    steps.textContent = '현재 삼성 인터넷에서 열려 있습니다. 아래 Chrome으로 열기를 눌러 팀바바 알림을 등록할 수 있습니다.';
+  } else if (android && chrome) {
+    steps.textContent = '휴대폰 설정 → 애플리케이션 → Chrome → 알림에서 알림 허용을 켜세요. Chrome으로 돌아와 주소창 왼쪽 사이트 정보 → 권한에 알림이 표시되면 허용하세요.';
   } else if (android) {
-    steps.textContent = 'Chrome 주소창 왼쪽의 사이트 정보 → 권한 → 알림을 허용하세요. 휴대폰 설정 → 애플리케이션 → Chrome → 알림도 확인하세요.';
+    steps.textContent = '아래 Chrome으로 열기를 눌러 팀바바에 접속한 뒤 알림을 등록해 주세요.';
   } else {
     steps.textContent = '브라우저의 사이트 권한에서 알림을 허용하세요. 아이폰은 홈 화면에 추가한 팀바바 앱과 설정 → 알림을 확인하세요.';
   }
@@ -178,20 +184,26 @@ function bindTripPushPermissions(button, hint) {
   };
   guide.append(steps, recheck);
 
-  if (android && installed) {
+  if (android && (installed || !chrome)) {
+    const address = new URL('./', location.href);
+    const openChrome = document.createElement('a');
+    openChrome.className = 'trip-push-link';
+    openChrome.textContent = 'Chrome으로 열기';
+    openChrome.href = 'intent://' + address.host + address.pathname +
+      '#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=' +
+      encodeURIComponent(address.href) + ';end';
     const copyAddress = document.createElement('button');
     copyAddress.className = 'secondary';
     copyAddress.textContent = 'Chrome에 붙여넣을 주소 복사';
-    const address = new URL('./', location.href).href;
     copyAddress.onclick = async () => {
       try {
-        await navigator.clipboard.writeText(address);
+        await navigator.clipboard.writeText(address.href);
         hint.textContent = '주소를 복사했습니다. Chrome을 열고 주소창에 붙여넣으세요.';
       } catch {
-        hint.textContent = 'Chrome 주소창에 이 주소를 입력하세요. ' + address;
+        hint.textContent = 'Chrome 주소창에 이 주소를 입력하세요. ' + address.href;
       }
     };
-    guide.append(' ', copyAddress);
+    guide.append(' ', openChrome, ' ', copyAddress);
   }
 
   settings.onclick = () => {
