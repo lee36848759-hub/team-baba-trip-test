@@ -9,6 +9,21 @@ async function pushStep(task, label, milliseconds = 15000) {
   } finally { clearTimeout(timer); }
 }
 
+async function requestTripPushPermission() {
+  let permissionCheck;
+  try {
+    const prompt = Notification.requestPermission();
+    const observedGrant = new Promise(resolve => {
+      permissionCheck = setInterval(() => {
+        if (Notification.permission === 'granted') resolve('granted');
+      }, 250);
+    });
+    return await pushStep(Promise.race([prompt, observedGrant]), '알림 권한 확인', 10000);
+  } finally {
+    clearInterval(permissionCheck);
+  }
+}
+
 async function tripPushApi(action, fields = {}) {
   const {data} = await clubClient.auth.getSession();
   if (!data.session) throw Error('로그인이 필요합니다.');
@@ -38,7 +53,7 @@ async function showTripPushSettings() {
   const hint = document.getElementById('tripPushHint');
   button.onclick = null;
   const blocked = '알림이 차단돼 있습니다. 휴대폰 알림 권한 설정에서 허용 방법을 확인해 주세요.';
-  bindTripPushPermissions(button, hint);
+  const openPermissionGuide = bindTripPushPermissions(button, hint);
   if (!('PushManager' in window) || !('Notification' in window) || !('serviceWorker' in navigator)) {
     hint.textContent = /Android/i.test(navigator.userAgent)
       ? '이 화면에서는 푸시를 사용할 수 없습니다. 같은 바바 주소를 Chrome에서 열어 주세요.'
@@ -83,7 +98,13 @@ async function showTripPushSettings() {
           if (Notification.permission === 'default') {
             button.textContent = '권한 확인 중…';
             hint.textContent = '휴대폰에 권한 창이 뜨면 알림을 허용해 주세요.';
-            const permission = await pushStep(Notification.requestPermission(), '알림 권한 확인', 20000);
+            let permission;
+            try {
+              permission = await requestTripPushPermission();
+            } catch (error) {
+              openPermissionGuide();
+              throw Error('알림 권한 창의 응답을 받지 못했습니다. 아래에서 휴대폰 권한을 확인하거나 Chrome에서 등록해 주세요.');
+            }
             if (permission !== 'granted') throw Error(permission === 'denied' ? blocked : '알림 권한 창에서 허용을 선택해 주세요.');
             renderButton();
             button.textContent = '이 기기 등록하기';
@@ -107,6 +128,7 @@ async function showTripPushSettings() {
       } catch(error) {
         renderButton();
         if (error.name === 'NotAllowedError') {
+          openPermissionGuide();
           hint.textContent = blocked;
         } else if (error.name === 'AbortError' || error.name === 'NetworkError') {
           hint.textContent = '휴대폰 브라우저가 푸시 서비스에 연결하지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.';
@@ -128,14 +150,18 @@ async function showTripPushSettings() {
 function bindTripPushPermissions(button, hint) {
   const settings = document.getElementById('tripPushPermissions');
   const guide = document.getElementById('tripPushPermissionGuide');
-  if (settings.onclick) return;
+  function openGuide() {
+    guide.hidden = false;
+    settings.setAttribute('aria-expanded', 'true');
+  }
+  if (settings.onclick) return openGuide;
 
   const android = /Android/i.test(navigator.userAgent);
   const installed = matchMedia('(display-mode: standalone)').matches;
   const steps = document.createElement('p');
   steps.className = 'muted';
   if (android && installed) {
-    steps.textContent = '홈 화면에서 팀바바 아이콘을 길게 누르고 ⓘ 앱 정보 → 알림 → 알림 허용을 켜세요. 앱 정보가 없으면 설정 → 애플리케이션 → Chrome → 알림을 확인하세요.';
+    steps.textContent = '홈 화면에서 팀바바 아이콘을 길게 누르고 ⓘ 앱 정보 → 알림 → 알림 허용을 켜세요. 앱 정보가 없거나 계속 시간이 초과되면 아래 주소를 복사해 Chrome 주소창에 붙여넣으세요. 주소창 왼쪽 사이트 정보 → 권한 → 알림을 허용한 다음 계정에서 내 출조 알림 받기를 누르세요.';
   } else if (android) {
     steps.textContent = 'Chrome 주소창 왼쪽의 사이트 정보 → 권한 → 알림을 허용하세요. 휴대폰 설정 → 애플리케이션 → Chrome → 알림도 확인하세요.';
   } else {
@@ -152,22 +178,29 @@ function bindTripPushPermissions(button, hint) {
   };
   guide.append(steps, recheck);
 
-  settings.onclick = async () => {
-    guide.hidden = !guide.hidden;
-    settings.setAttribute('aria-expanded', String(!guide.hidden));
-    if (guide.hidden || tripPushBusy || !('Notification' in window) ||
-        Notification.permission !== 'default' || !('PushManager' in window)) return;
-    tripPushBusy = true;
-    try {
-      const permission = await pushStep(Notification.requestPermission(), '알림 권한 확인', 20000);
-      if (!button.isConnected) return;
-      hint.textContent = permission === 'granted'
-        ? '알림을 허용했습니다. 내 출조 알림 받기를 눌러 기기 등록을 마쳐 주세요.'
-        : '위 경로에서 알림 권한을 확인한 뒤 권한 다시 확인을 눌러 주세요.';
-    } catch (error) {
-      if (button.isConnected) hint.textContent = error.message;
-    } finally {
-      tripPushBusy = false;
+  if (android && installed) {
+    const copyAddress = document.createElement('button');
+    copyAddress.className = 'secondary';
+    copyAddress.textContent = 'Chrome에 붙여넣을 주소 복사';
+    const address = new URL('./', location.href).href;
+    copyAddress.onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(address);
+        hint.textContent = '주소를 복사했습니다. Chrome을 열고 주소창에 붙여넣으세요.';
+      } catch {
+        hint.textContent = 'Chrome 주소창에 이 주소를 입력하세요. ' + address;
+      }
+    };
+    guide.append(' ', copyAddress);
+  }
+
+  settings.onclick = () => {
+    if (guide.hidden) {
+      openGuide();
+    } else {
+      guide.hidden = true;
+      settings.setAttribute('aria-expanded', 'false');
     }
   };
+  return openGuide;
 }
