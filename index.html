@@ -703,7 +703,7 @@ async function showRoster(deleted=false){
       const q=$('rosterFilter').value.trim().toLowerCase();
       const items=members.filter(x=>x.nickname.toLowerCase().includes(q));
       $('rosterCount').textContent=`전체 ${members.length}명 · 표시 ${items.length}명`;
-      $('rosterRows').innerHTML=items.length?items.map(x=>`<div class="approval-item row"><div><b>${esc(x.nickname)}</b> <span class="pill">${esc(statuses[x.status]||x.status)}</span><div class="muted">${esc(roles[x.role]||x.role)} · 가입일 ${esc(x.createdAt||'확인 불가')}${isManager?' · 회원번호 '+esc(x.id.slice(0,8))+'…':''}</div></div><div class="actions">${!isManager||x.id===state.profile.id||x.role==='admin'||x.status==='deleted'?'':`${x.status==='active'?`<select aria-label="${esc(x.nickname)} 회원 권한" data-roster-role="${esc(x.id)}" style="width:auto;margin:0;padding:9px"><option value="member" ${x.role==='member'?'selected':''}>일반회원</option><option value="staff" ${x.role==='staff'?'selected':''}>운영진</option></select><button class="secondary" data-roster-role-save="${esc(x.id)}" data-member-name="${esc(x.nickname)}">권한 저장</button>`:''}<button class="danger" data-roster-delete="${esc(x.id)}" data-member-name="${esc(x.nickname)}">삭제</button>`}</div></div>`).join(''):'검색 결과가 없습니다.';
+      $('rosterRows').innerHTML=items.length?items.map(x=>`<div class="approval-item row"><div><b>${esc(x.nickname)}</b> <span class="pill">${esc(statuses[x.status]||x.status)}</span><div class="muted">${esc(roles[x.role]||x.role)} · 가입일 ${esc(x.createdAt||'확인 불가')}${isManager?' · 회원번호 '+esc(x.id.slice(0,8))+'…':''}</div></div><div class="actions">${!isManager||x.id===state.profile.id||x.role==='admin'||x.status==='deleted'?'':`${x.status==='active'?`<select aria-label="${esc(x.nickname)} 회원 권한" data-roster-role="${esc(x.id)}" style="width:auto;margin:0;padding:9px"><option value="member" ${x.role==='member'?'selected':''}>일반회원</option><option value="staff" ${x.role==='staff'?'selected':''}>운영진</option><option value="admin">최고관리자</option></select><button class="secondary" data-roster-role-save="${esc(x.id)}" data-member-name="${esc(x.nickname)}">권한 저장</button>`:''}<button class="danger" data-roster-delete="${esc(x.id)}" data-member-name="${esc(x.nickname)}">삭제</button>`}</div></div>`).join(''):'검색 결과가 없습니다.';
       $('rosterRows').querySelectorAll('[data-roster-role-save]').forEach(b=>b.onclick=async()=>{
         const id=b.dataset.rosterRoleSave,name=b.dataset.memberName;
         const selected=$('rosterRows').querySelectorAll('[data-roster-role]');
@@ -712,7 +712,7 @@ async function showRoster(deleted=false){
         if(!picker||!member)return;
         const next=picker.value;
         if(next===member.role)return msg('현재 권한과 동일합니다.');
-        const label=next==='staff'?'운영진':'일반회원';
+        const label=roles[next];
         if(!confirm(name+' 회원의 권한을 '+label+'(으)로 변경하시겠습니까?\n변경 후 해당 회원은 다시 로그인해야 합니다.'))return;
         b.disabled=true;
         try{await call('changeMemberRole',token,id,next);msg(name+' 회원 권한을 '+label+'(으)로 변경했습니다.');await showRoster()}

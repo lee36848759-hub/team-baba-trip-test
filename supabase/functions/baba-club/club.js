@@ -587,7 +587,7 @@ function archiveAllTrips(token, confirmation) {
 function changeMemberRole(token, memberId, newRole){active_(auth_(token));return locked_(()=>{
   const actor=auth_(token);
   if(actor.role!=='admin')fail_('최고관리자만 회원 권한을 변경할 수 있습니다.');
-  if(!['member','staff'].includes(newRole))fail_('변경 가능한 권한은 일반회원 또는 운영진입니다.');
+  if(!['member','staff','admin'].includes(newRole))fail_('올바른 회원 권한을 선택해 주세요.');
   const target=rows_('Members').find(x=>String(x.id)===String(memberId));
   if(!target)fail_('회원을 찾을 수 없습니다.');
   if(target.status!=='active')fail_('활성 회원의 권한만 변경할 수 있습니다.');
