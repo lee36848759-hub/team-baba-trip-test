@@ -1,3 +1,5 @@
+let pendingTripPushSubscription;
+
 async function pushStep(task, label, milliseconds = 15000) {
   let timer;
   try {
@@ -74,12 +76,15 @@ async function showTripPushSettings() {
             return;
           }
           hint.textContent = '휴대폰의 알림 권한과 푸시 서비스 응답을 기다리고 있습니다.';
-          const slow = setTimeout(()=>{
-            hint.textContent = '휴대폰 푸시 서비스의 응답을 기다리는 중입니다. 계속 지연되면 Chrome에서 같은 주소를 열어 등록해 주세요.';
-          }, 30000);
-          try {
-            sub = sub || await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey});
-          } finally { clearTimeout(slow); }
+          if (!sub) {
+            if (!pendingTripPushSubscription) {
+              pendingTripPushSubscription = registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey
+              }).finally(() => { pendingTripPushSubscription = null; });
+            }
+            sub = await pushStep(pendingTripPushSubscription, '휴대폰 브라우저의 푸시 응답 대기', 25000);
+          }
           hint.textContent = '이 기기를 팀바바에 등록하고 있습니다.';
           await pushStep(tripPushApi('on',{subscription:sub.toJSON()}), '팀바바 기기 등록');
           enabled = true;
@@ -87,7 +92,13 @@ async function showTripPushSettings() {
         renderButton();
       } catch(error) {
         renderButton();
-        hint.textContent = error.name === 'NotAllowedError' ? blocked : (error.message || '알림 설정을 확인해 주세요.');
+        if (error.name === 'NotAllowedError') {
+          hint.textContent = blocked;
+        } else if (error.name === 'AbortError' || error.name === 'NetworkError') {
+          hint.textContent = '휴대폰 브라우저가 푸시 서비스에 연결하지 못했습니다. 네트워크 연결을 확인한 뒤 다시 시도해 주세요.';
+        } else {
+          hint.textContent = error.message || '알림 설정을 확인해 주세요.';
+        }
       }
     };
   } catch(error) {
