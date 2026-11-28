@@ -72,8 +72,8 @@ async function showTripPushSettings() {
     }
     function renderButton() {
       button.disabled = false;
-      button.textContent = enabled ? '이 기기 알림 끄기' : '내 출조 알림 받기';
-      hint.textContent = enabled ? '이 기기로 내 출조의 신청과 인원 변동을 알려드립니다.' :
+      button.textContent = enabled ? '이 기기 알림 끄기' : (admin()?'운영진 알림 받기':'내 출조 알림 받기');
+      hint.textContent = enabled ? (admin()?'가입 신청과 모든 출조의 신청·취소·양도 변동을 알려드립니다.':'이 기기로 내 출조의 신청과 인원 변동을 알려드립니다.') :
         Notification.permission === 'denied' ? blocked : '버튼을 누르고 알림 권한을 허용해 주세요.';
     }
     renderButton();

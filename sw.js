@@ -1,6 +1,6 @@
 const scope = self.registration.scope;
 const config = new URL('config.js', scope).href;
-const cacheName = 'baba-club-shell-v10-' + scope;
+const cacheName = 'baba-club-shell-v11-' + scope;
 const assets = ['./','./index.html','./app.js','./trip-push.js','./manifest.json','./icon192.png','./icon512.png'];
 
 self.addEventListener('install', event => {
@@ -42,17 +42,18 @@ self.addEventListener('fetch', event => {
 self.addEventListener('push', event => {
   if (!event.data) return;
   const change = event.data.json();
-  if (!/^[a-f0-9-]{36}$/i.test(change.trip)) return;
+  if (change.kind!=='membership' && !/^[a-f0-9-]{36}$/i.test(change.trip)) return;
   event.waitUntil(self.registration.showNotification(change.title || '팀바바 출조', {
     body: change.body, icon: new URL('icon192.png', scope).href,
-    tag: 'baba-event-' + change.id, data: {trip: change.trip}
+    tag: 'baba-event-' + change.id, data: {trip: change.trip,kind:change.kind}
   }));
 });
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const trip = event.notification.data?.trip;
-  if (!/^[a-f0-9-]{36}$/i.test(trip)) return;
   const target = new URL('./', scope);
-  target.searchParams.set('trip', trip);
+  if(event.notification.data?.kind==='membership')target.searchParams.set('view','membership');
+  else if(/^[a-f0-9-]{36}$/i.test(trip))target.searchParams.set('trip',trip);
+  else return;
   event.waitUntil(self.clients.openWindow(target.href));
 });

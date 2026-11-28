@@ -27,10 +27,13 @@ async function deliver(){
   await Promise.all(jobs.map(async j=>{
     try{
       const [eligible]=await sql`select 1 from baba_migration.club_state s,
-        jsonb_array_elements(s.tables->'Trips') t,jsonb_array_elements(s.tables->'Members') m
-        where t->>'id'=${j.trip_id} and baba_migration.trip_creator(t,s.tables)=${j.member_id} and t->>'status'<>'deleted'
-        and m->>'id'=${j.member_id} and m->>'status'='active'`;
-      if(eligible)await push.sendNotification(j.subscription,JSON.stringify({id:String(j.id),trip:j.trip_id,title:j.title,body:j.body}),{
+        jsonb_array_elements(s.tables->'Members') m
+        where m->>'id'=${j.member_id} and m->>'status'='active' and (
+          (${j.trip_id}::text is null and m->>'role' in ('admin','staff'))
+          or exists(select from jsonb_array_elements(s.tables->'Trips') t where t->>'id'=${j.trip_id}
+            and t->>'status'<>'deleted' and (m->>'role' in ('admin','staff') or baba_migration.trip_creator(t,s.tables)=m->>'id'))
+        )`;
+      if(eligible)await push.sendNotification(j.subscription,JSON.stringify({id:String(j.id),trip:j.trip_id,kind:j.trip_id?'trip':'membership',title:j.title,body:j.body}),{
         TTL:3600,timeout:8000,vapidDetails:{subject:site,...pair}
       });
       await sql`delete from baba_migration.push_jobs where id=${j.id}`;
